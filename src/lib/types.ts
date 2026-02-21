@@ -57,11 +57,16 @@ export interface Community {
     products: string[];
 }
 
+export interface BoxItem {
+    ingredient: Ingredient;
+    quantity: number; // e.g., 2
+}
+
 // กล่องสุขภาพรายสัปดาห์
 export interface WeeklyBox {
     id: string;
     weekNumber: number;
-    ingredients: Ingredient[];
+    items: BoxItem[];
     totalPrice: number;
     matchScore: number; // 0-100
 }
@@ -124,17 +129,27 @@ export interface BMRResult {
     targetFat: number; // grams/day
 }
 
-// สูตรอาหาร (Recipe)
+export interface RecipeData {
+    id: string;
+    name: string;
+    description: string;
+    image: string;
+    items: { ingredientId: string; amount: number }[]; // Extracted from ID and scaled amount
+    cookTime: string; // e.g. "15 นาที"
+    mealType: 'เช้า' | 'กลางวัน' | 'เย็น' | 'ว่าง';
+    instructions: string[];
+}
+
 export interface Recipe {
     id: string;
     name: string;
     description: string;
     image: string;
-    ingredientIds: string[]; // ingredient IDs used
-    calories: number;
-    protein: number;
-    carbs: number;
-    fat: number;
+    items: { ingredientId: string; amount: number }[]; // ingredient IDs and base amounts used
+    calories?: number;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
     cookTime: string; // e.g. "15 นาที"
     mealType: 'เช้า' | 'กลางวัน' | 'เย็น' | 'ว่าง';
     instructions: string[];

@@ -1,5 +1,19 @@
-import { Ingredient, ThaiElement, HealthGoal, WeeklyBox, BMRResult, Recipe, DailyMealPlan, WeeklyMealPlan, MealPlanSubscription, SubscriptionTier } from './types';
-import { ingredients, recipes } from './mockData';
+import {
+    Ingredient,
+    WeeklyBox,
+    DailyMealPlan,
+    UserProfile,
+    ThaiElement,
+    HealthGoal,
+    Recipe,
+    WeeklyMealPlan,
+    BoxItem,
+    SubscriptionTier,
+    MealPlanSubscription
+} from './types';
+import { ingredients as allIngredients, recipes } from './mockData';
+import { NutritionCalculator } from './nutritionCalculator';
+import { RecipeModel } from './dataModels';
 
 /**
  * AI Recommendation Engine (Rule-based matching)
@@ -10,33 +24,24 @@ export function getRecommendedIngredients(
     goals: HealthGoal[],
     maxItems: number = 6
 ): Ingredient[] {
-    // Score each ingredient based on element and goal matching
-    const scored = ingredients.map((ingredient) => {
+    // Score each ingredient    // 1. กรองวัตถุดิบและให้คะแนนตามความเหมาะสม
+    const scoredIngredients = allIngredients.map((ingredient: Ingredient) => {
         let score = 0;
-
-        // Element matching: +3 points
-        if (ingredient.suitableElements.includes(element)) {
-            score += 3;
-        }
-
-        // Goal matching: +2 points per matching goal
-        goals.forEach((goal) => {
-            if (ingredient.suitableGoals.includes(goal)) {
-                score += 2;
-            }
+        if (ingredient.suitableElements.includes(element)) score += 3;
+        ingredient.suitableGoals.forEach((g: string) => {
+            if (goals.includes(g as HealthGoal)) score += 2;
         });
-
-        // In-stock bonus: +1 if > 50 units
-        if (ingredient.inStock > 50) {
-            score += 1;
-        }
-
         return { ingredient, score };
     });
 
-    // Sort by score descending and take top items
-    scored.sort((a, b) => b.score - a.score);
-    return scored.slice(0, maxItems).map((s) => s.ingredient);
+    // 2. จัดเรียงตามคะแนน
+    const sorted = scoredIngredients
+        .filter((s: { ingredient: Ingredient; score: number }) => s.score > 0)
+        .sort((a: { ingredient: Ingredient; score: number }, b: { ingredient: Ingredient; score: number }) => b.score - a.score);
+
+    // 3. เลือก 4-6 อย่างสำหรับ 1 สัปดาห์
+    const recommended = sorted.slice(0, 5).map((s: { ingredient: Ingredient; score: number }) => s.ingredient);
+    return recommended;
 }
 
 /**
@@ -64,10 +69,12 @@ export function generateWeeklyBox(
         )
     );
 
+    const boxItems: BoxItem[] = recommended.map(ing => ({ ingredient: ing, quantity: 1 }));
+
     return {
         id: `box-${weekNumber}`,
         weekNumber,
-        ingredients: recommended,
+        items: boxItems,
         totalPrice,
         matchScore,
     };
@@ -128,66 +135,20 @@ export function calculateBioAge(realAge: number, streak: number, goalsCount: num
 }
 
 /**
- * คำนวณ BMR (Harris-Benedict Equation)
- * และ TDEE (Total Daily Energy Expenditure)
+ * Removed calculateBMR - Use NutritionCalculator instead.
  */
-export function calculateBMR(
-    weight: number,
-    height: number,
-    age: number,
-    gender: 'ชาย' | 'หญิง' | 'อื่นๆ',
-    goals: HealthGoal[]
-): BMRResult {
-    // Harris-Benedict BMR Formula
-    let bmr: number;
-    if (gender === 'ชาย') {
-        bmr = 66.47 + (13.75 * weight) + (5.003 * height) - (6.755 * age);
-    } else {
-        // หญิง หรือ อื่นๆ ใช้สูตรหญิง
-        bmr = 655.1 + (9.563 * weight) + (1.85 * height) - (4.676 * age);
-    }
-    bmr = Math.round(bmr);
-
-    // TDEE = BMR × Activity Factor (ใช้ระดับปานกลาง 1.55 เป็น default)
-    const activityFactor = 1.55;
-    const tdee = Math.round(bmr * activityFactor);
-
-    // ปรับแคลอรี่ตามเป้าหมาย
-    let targetCalories = tdee;
-    if (goals.includes('ลดน้ำหนัก')) {
-        targetCalories = Math.round(tdee * 0.8); // ลด 20%
-    } else if (goals.includes('เพิ่มพลังงาน')) {
-        targetCalories = Math.round(tdee * 1.1); // เพิ่ม 10%
-    }
-
-    // คำนวณ Macros (based on target calories)
-    // Protein: 30%, Carbs: 45%, Fat: 25%
-    const targetProtein = Math.round((targetCalories * 0.3) / 4); // 4 kcal/g
-    const targetCarbs = Math.round((targetCalories * 0.45) / 4); // 4 kcal/g
-    const targetFat = Math.round((targetCalories * 0.25) / 9); // 9 kcal/g
-
-    return {
-        bmr,
-        tdee,
-        targetCalories,
-        targetProtein,
-        targetCarbs,
-        targetFat,
-    };
-}
-
 /**
  * สร้างแผนอาหารรายวัน (2-3 มื้อ + ว่าง)
  * จับคู่สูตรอาหารจากวัตถุดิบที่แนะนำ
  * @param recommendedIngredients - วัตถุดิบที่แนะนำ
- * @param bmrResult - ผล BMR
+ * @param calculator - Instance ของ NutritionCalculator
  * @param dayLabel - ชื่อวัน เช่น "วันจันทร์"
  * @param mealsPerDay - จำนวนมื้อหลัก (2 หรือ 3)
  * @param excludeRecipeIds - recipe IDs ที่ไม่ต้องการให้ซ้ำ
  */
 export function generateDailyMealPlan(
     recommendedIngredients: Ingredient[],
-    bmrResult: BMRResult,
+    calculator: NutritionCalculator,
     dayLabel: string = 'วันนี้',
     mealsPerDay: 2 | 3 = 3,
     excludeRecipeIds: string[] = []
@@ -195,10 +156,11 @@ export function generateDailyMealPlan(
     const ingredientIds = recommendedIngredients.map((i) => i.id);
 
     // หาสูตรอาหารที่ใช้วัตถุดิบจากกล่อง
-    const matchingRecipes = recipes.map((recipe) => {
-        const matchCount = recipe.ingredientIds.filter((id) => ingredientIds.includes(id)).length;
-        const matchRatio = matchCount / recipe.ingredientIds.length;
-        return { recipe, matchCount, matchRatio };
+    const matchingRecipes = recipes.map((recipeData) => {
+        const recipe = new RecipeModel(recipeData); // Upgrade to OOP Model
+        const matchCount = recipe.items.filter((item) => ingredientIds.includes(item.ingredientId)).length;
+        const matchRatio = recipe.items.length > 0 ? matchCount / recipe.items.length : 0;
+        return { recipe: recipe as unknown as Recipe, matchCount, matchRatio };
     }).filter((r) => r.matchCount > 0)
         .sort((a, b) => b.matchRatio - a.matchRatio || b.matchCount - a.matchCount);
 
@@ -222,7 +184,8 @@ export function generateDailyMealPlan(
             return notUsedToday.recipe;
         }
         // fallback สุดท้าย
-        const fallback = recipes.find((r) => r.mealType === type)!;
+        const fallbackData = recipes.find((r) => r.mealType === type)!;
+        const fallback = new RecipeModel(fallbackData) as unknown as Recipe;
         usedIds.push(fallback.id);
         return fallback;
     };
@@ -230,27 +193,25 @@ export function generateDailyMealPlan(
     const meals: { type: 'เช้า' | 'กลางวัน' | 'เย็น' | 'ว่าง'; recipe: Recipe }[] = [];
 
     if (mealsPerDay >= 2) {
-        meals.push({ type: 'เช้า', recipe: findBestMeal('เช้า') });
-        meals.push({ type: 'กลางวัน', recipe: findBestMeal('กลางวัน') });
+        meals.push({ type: 'เช้า', recipe: { ...findBestMeal('เช้า') } });
+        meals.push({ type: 'กลางวัน', recipe: { ...findBestMeal('กลางวัน') } });
     }
     if (mealsPerDay >= 3) {
-        meals.push({ type: 'เย็น', recipe: findBestMeal('เย็น') });
+        meals.push({ type: 'เย็น', recipe: { ...findBestMeal('เย็น') } });
     }
     // ว่างเสมอ
-    meals.push({ type: 'ว่าง', recipe: findBestMeal('ว่าง') });
+    meals.push({ type: 'ว่าง', recipe: { ...findBestMeal('ว่าง') } });
 
-    const totalCalories = meals.reduce((sum, m) => sum + m.recipe.calories, 0);
-    const totalProtein = meals.reduce((sum, m) => sum + m.recipe.protein, 0);
-    const totalCarbs = meals.reduce((sum, m) => sum + m.recipe.carbs, 0);
-    const totalFat = meals.reduce((sum, m) => sum + m.recipe.fat, 0);
+    // Delegate scaling to NutritionCalculator (OOP)
+    const optimized = calculator.optimizeDailyMeals(meals);
 
     return {
         dayLabel,
-        meals,
-        totalCalories,
-        totalProtein,
-        totalCarbs,
-        totalFat,
+        meals: optimized.meals,
+        totalCalories: optimized.totalCalories,
+        totalProtein: optimized.totalProtein,
+        totalCarbs: optimized.totalCarbs,
+        totalFat: optimized.totalFat,
     };
 }
 
@@ -262,7 +223,7 @@ const DAY_LABELS = ['วันจันทร์', 'วันอังคาร'
  */
 export function generateWeeklyMealPlan(
     recommendedIngredients: Ingredient[],
-    bmrResult: BMRResult,
+    calculator: NutritionCalculator,
     weekNumber: number = 1,
     mealsPerDay: 2 | 3 = 3
 ): WeeklyMealPlan {
@@ -272,7 +233,7 @@ export function generateWeeklyMealPlan(
     for (let d = 0; d < 7; d++) {
         const dayPlan = generateDailyMealPlan(
             recommendedIngredients,
-            bmrResult,
+            calculator,
             DAY_LABELS[d],
             mealsPerDay,
             prevDayRecipeIds
@@ -312,13 +273,13 @@ export function generateMealPlanSubscription(
     gender: 'ชาย' | 'หญิง' | 'อื่นๆ'
 ): MealPlanSubscription {
     const recommended = getRecommendedIngredients(element, goals);
-    const bmr = calculateBMR(weight, height, age, gender, goals);
+    const calculator = new NutritionCalculator(weight, height, age, gender, goals);
     const mealsPerDay: 2 | 3 = 3;
     const weekCount = tier === 'monthly' ? 4 : 1;
 
     const weeks: WeeklyMealPlan[] = [];
     for (let w = 0; w < weekCount; w++) {
-        weeks.push(generateWeeklyMealPlan(recommended, bmr, w + 1, mealsPerDay));
+        weeks.push(generateWeeklyMealPlan(recommended, calculator, w + 1, mealsPerDay));
     }
 
     return {

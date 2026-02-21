@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { generateWeeklyBox, calculateBMI, calculateBMR, generateDailyMealPlan } from '@/lib/aiRecommendation';
+import { generateWeeklyBox, calculateBMI, generateDailyMealPlan } from '@/lib/aiRecommendation';
 import { elementDescriptions, ingredients } from '@/lib/mockData';
 import { ThaiElement, HealthGoal, WeeklyBox, BMRResult, DailyMealPlan } from '@/lib/types';
+import { NutritionCalculator } from '@/lib/nutritionCalculator';
 
 export default function DashboardPage() {
     const [profile, setProfile] = useState<{
@@ -30,9 +31,10 @@ export default function DashboardPage() {
             setProfile(parsed);
             const box = generateWeeklyBox(parsed.element, parsed.healthGoals, 8);
             setWeeklyBox(box);
-            const bmr = calculateBMR(parsed.weight, parsed.height, parsed.age, parsed.gender, parsed.healthGoals);
+            const calculator = new NutritionCalculator(parsed.weight, parsed.height, parsed.age, parsed.gender, parsed.healthGoals);
+            const bmr = calculator.getTargetNutrition();
             setBmrResult(bmr);
-            const plan = generateDailyMealPlan(box.ingredients, bmr);
+            const plan = generateDailyMealPlan(box.items.map(item => item.ingredient), calculator);
             setMealPlan(plan);
         } else {
             const defaultProfile = {
@@ -47,9 +49,10 @@ export default function DashboardPage() {
             setProfile(defaultProfile);
             const box = generateWeeklyBox(defaultProfile.element, defaultProfile.healthGoals, 8);
             setWeeklyBox(box);
-            const bmr = calculateBMR(defaultProfile.weight, defaultProfile.height, defaultProfile.age, defaultProfile.gender, defaultProfile.healthGoals);
+            const calculator = new NutritionCalculator(defaultProfile.weight, defaultProfile.height, defaultProfile.age, defaultProfile.gender, defaultProfile.healthGoals);
+            const bmr = calculator.getTargetNutrition();
             setBmrResult(bmr);
-            const plan = generateDailyMealPlan(box.ingredients, bmr);
+            const plan = generateDailyMealPlan(box.items.map(item => item.ingredient), calculator);
             setMealPlan(plan);
         }
     }, []);
@@ -305,7 +308,7 @@ export default function DashboardPage() {
                                 {mealPlan.meals.map((meal, i) => {
                                     const mealInfo = mealTypeLabels[meal.type];
                                     const isExpanded = expandedRecipe === meal.recipe.id;
-                                    const mealIngredients = meal.recipe.ingredientIds
+                                    const mealIngredients = meal.recipe.items.map(item => item.ingredientId)
                                         .map((id) => ingredients.find((ing) => ing.id === id))
                                         .filter(Boolean);
 
@@ -426,7 +429,7 @@ export default function DashboardPage() {
                                                 📦 กล่อง Ayura สัปดาห์ที่ {weeklyBox.weekNumber}
                                             </h3>
                                             <p className="text-sm text-[var(--color-text-light)]">
-                                                AI เลือกวัตถุดิบ {weeklyBox.ingredients.length} ชิ้นสำหรับคุณ
+                                                AI เลือกวัตถุดิบ {weeklyBox.items.map(item => item.ingredient).length} ชิ้นสำหรับคุณ
                                             </p>
                                         </div>
                                         <div className="text-right">
@@ -438,42 +441,48 @@ export default function DashboardPage() {
                                     </div>
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {weeklyBox.ingredients.map((ingredient, i) => (
-                                            <div
-                                                key={ingredient.id}
-                                                className="flex items-start gap-4 p-4 bg-[var(--color-bg)] rounded-xl hover-lift transition-all group"
-                                                style={{ animationDelay: `${i * 100}ms` }}
-                                            >
-                                                <div className="w-14 h-14 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center text-3xl flex-shrink-0 group-hover:scale-110 transition-transform">
-                                                    {ingredient.image}
+                                        {weeklyBox.items.map((item, i) => {
+                                            const ingredient = item.ingredient;
+                                            return (
+                                                <div
+                                                    key={ingredient.id}
+                                                    className="flex items-start gap-4 p-4 bg-[var(--color-bg)] rounded-xl hover-lift transition-all group"
+                                                    style={{ animationDelay: `${i * 100}ms` }}
+                                                >
+                                                    <div className="w-14 h-14 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center text-3xl flex-shrink-0 group-hover:scale-110 transition-transform">
+                                                        {ingredient.image}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <h4 className="font-bold text-sm">{ingredient.name}</h4>
+                                                            <span className="text-xs px-2 py-0.5 bg-[var(--color-primary)]/20 text-[var(--color-primary)] rounded-full font-semibold">
+                                                                {item.quantity} x {ingredient.servingSize}
+                                                            </span>
+                                                            <span className="text-xs px-2 py-0.5 bg-[var(--color-secondary)]/20 text-[var(--color-secondary)] rounded-full">
+                                                                {ingredient.category}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-xs text-[var(--color-text-light)] mt-1 line-clamp-2">
+                                                            {ingredient.benefits}
+                                                        </p>
+                                                        <div className="flex items-center gap-3 mt-2 text-xs text-[var(--color-text-muted)]">
+                                                            <span>{ingredient.calories} kcal/{ingredient.servingSize}</span>
+                                                            <span>P:{ingredient.protein}g</span>
+                                                            <span>C:{ingredient.carbs}g</span>
+                                                            <span>F:{ingredient.fat}g</span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between mt-2">
+                                                            <span className="text-xs text-[var(--color-text-muted)]">
+                                                                📍 {ingredient.community}
+                                                            </span>
+                                                            <span className="text-sm font-bold text-[var(--color-primary)]">
+                                                                ฿{ingredient.pricePerUnit * item.quantity}
+                                                            </span>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2">
-                                                        <h4 className="font-bold text-sm">{ingredient.name}</h4>
-                                                        <span className="text-xs px-2 py-0.5 bg-[var(--color-secondary)]/20 text-[var(--color-secondary)] rounded-full">
-                                                            {ingredient.category}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-xs text-[var(--color-text-light)] mt-1 line-clamp-2">
-                                                        {ingredient.benefits}
-                                                    </p>
-                                                    <div className="flex items-center gap-3 mt-2 text-xs text-[var(--color-text-muted)]">
-                                                        <span>{ingredient.calories} kcal/{ingredient.servingSize}</span>
-                                                        <span>P:{ingredient.protein}g</span>
-                                                        <span>C:{ingredient.carbs}g</span>
-                                                        <span>F:{ingredient.fat}g</span>
-                                                    </div>
-                                                    <div className="flex items-center justify-between mt-2">
-                                                        <span className="text-xs text-[var(--color-text-muted)]">
-                                                            📍 {ingredient.community}
-                                                        </span>
-                                                        <span className="text-sm font-bold text-[var(--color-primary)]">
-                                                            ฿{ingredient.pricePerUnit}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
 

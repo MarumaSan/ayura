@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { generateMealPlanSubscription } from '@/lib/aiRecommendation';
+import { generateMealPlanSubscription, generateWeeklyBox } from '@/lib/aiRecommendation';
 import { ingredients } from '@/lib/mockData';
-import { ThaiElement, HealthGoal, MealPlanSubscription, SubscriptionTier } from '@/lib/types';
+import { ThaiElement, HealthGoal, MealPlanSubscription, SubscriptionTier, WeeklyBox } from '@/lib/types';
+import { PricingManager } from '@/lib/pricingManager';
 
-const TIER_INFO: Record<SubscriptionTier, {
+const getTierInfo = (pricing: PricingManager): Record<SubscriptionTier, {
     label: string;
     emoji: string;
     price: string;
@@ -14,11 +15,11 @@ const TIER_INFO: Record<SubscriptionTier, {
     meals: string;
     color: string;
     highlight?: boolean;
-}> = {
+}> => ({
     weekly: {
         label: 'รายสัปดาห์',
         emoji: '📦',
-        price: '499 ฿',
+        price: pricing.getFormattedTotalPrice('weekly'),
         duration: '7 วัน',
         meals: '3 มื้อ + ว่าง',
         color: 'from-blue-500 to-indigo-600',
@@ -27,12 +28,12 @@ const TIER_INFO: Record<SubscriptionTier, {
     monthly: {
         label: 'รายเดือน',
         emoji: '📦📦📦📦',
-        price: '1,899 ฿',
+        price: pricing.getFormattedTotalPrice('monthly'),
         duration: '30 วัน (4 สัปดาห์)',
         meals: '3 มื้อ + ว่าง',
         color: 'from-purple-500 to-pink-600',
     },
-};
+});
 
 const DAY_SHORT = ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.', 'อา.'];
 
@@ -46,6 +47,7 @@ const mealTypeLabels: Record<string, { label: string; emoji: string; time: strin
 export default function MealPlanPage() {
     const [tier, setTier] = useState<SubscriptionTier>('weekly');
     const [subscription, setSubscription] = useState<MealPlanSubscription | null>(null);
+    const [weeklyBox, setWeeklyBox] = useState<WeeklyBox | null>(null);
     const [selectedWeek, setSelectedWeek] = useState(0);
     const [selectedDay, setSelectedDay] = useState(0);
     const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
@@ -68,7 +70,10 @@ export default function MealPlanPage() {
         }
 
         const sub = generateMealPlanSubscription(element, goals, tier, weight, height, age, gender);
+        const box = generateWeeklyBox(element, goals, 1);
+
         setSubscription(sub);
+        setWeeklyBox(box);
         setSelectedWeek(0);
         setSelectedDay(0);
         setExpandedRecipe(null);
@@ -87,6 +92,10 @@ export default function MealPlanPage() {
 
     const currentWeek = subscription.weeks[selectedWeek];
     const currentDay = currentWeek.days[selectedDay];
+
+    // Dynamic pricing using PricingManager
+    const pricing = new PricingManager(weeklyBox);
+    const tierInfo = getTierInfo(pricing);
 
     return (
         <div className="min-h-screen pt-24 pb-16 bg-[var(--color-bg-section)]">
@@ -107,7 +116,7 @@ export default function MealPlanPage() {
                         📋 เลือกแผนสมาชิก
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {(Object.entries(TIER_INFO) as [SubscriptionTier, typeof TIER_INFO['weekly']][]).map(([key, info]) => (
+                        {(Object.entries(tierInfo) as [SubscriptionTier, typeof tierInfo['weekly']][]).map(([key, info]) => (
                             <button
                                 key={key}
                                 onClick={() => setTier(key)}
@@ -285,7 +294,7 @@ export default function MealPlanPage() {
                             {currentDay.meals.map((meal, i) => {
                                 const mealInfo = mealTypeLabels[meal.type];
                                 const isExpanded = expandedRecipe === `${selectedWeek}-${selectedDay}-${meal.recipe.id}`;
-                                const mealIngredients = meal.recipe.ingredientIds
+                                const mealIngredients = meal.recipe.items.map(item => item.ingredientId)
                                     .map((id) => ingredients.find((ing) => ing.id === id))
                                     .filter(Boolean);
 

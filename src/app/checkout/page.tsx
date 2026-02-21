@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { generateWeeklyBox } from '@/lib/aiRecommendation';
 import { ThaiElement, HealthGoal, WeeklyBox } from '@/lib/types';
+import { PricingManager } from '@/lib/pricingManager';
 
 export default function CheckoutPage() {
     const [weeklyBox, setWeeklyBox] = useState<WeeklyBox | null>(null);
@@ -26,13 +27,12 @@ export default function CheckoutPage() {
         }
     }, []);
 
-    const deliveryFee = 50;
-    const discount = plan === 'monthly' ? 0.1 : 0;
-    const subtotal = 499; // Fixed weekly price
+    const pricing = new PricingManager(weeklyBox);
+    const subtotal = pricing.getWeeklyPrice();
+    const deliveryFee = pricing.getDeliveryFee();
+    const discountAmount = pricing.getDiscountAmount(plan);
+    const total = pricing.getTotalPrice(plan);
     const planMultiplier = plan === 'monthly' ? 4 : 1;
-    const totalBeforeDiscount = subtotal * planMultiplier + deliveryFee;
-    const discountAmount = Math.round(totalBeforeDiscount * discount);
-    const total = totalBeforeDiscount - discountAmount;
 
     const handleOrder = () => {
         setShowSuccess(true);
@@ -76,7 +76,7 @@ export default function CheckoutPage() {
                                     <div className="text-3xl mb-2">📦</div>
                                     <div className="font-bold text-sm">รายสัปดาห์</div>
                                     <div className="text-lg font-bold text-[var(--color-primary)] mt-1">
-                                        ฿{subtotal + deliveryFee}
+                                        ฿{pricing.getTotalPrice('weekly')}
                                     </div>
                                     <div className="text-xs text-[var(--color-text-muted)] mt-1">ต่อสัปดาห์</div>
                                 </button>
@@ -93,7 +93,7 @@ export default function CheckoutPage() {
                                     <div className="text-3xl mb-2">📦📦📦📦</div>
                                     <div className="font-bold text-sm">รายเดือน (4 สัปดาห์)</div>
                                     <div className="text-lg font-bold text-[var(--color-primary)] mt-1">
-                                        ฿{Math.round((subtotal * 4 + deliveryFee) * 0.9)}
+                                        ฿{pricing.getTotalPrice('monthly')}
                                     </div>
                                     <div className="text-xs text-[var(--color-text-muted)] mt-1">ต่อเดือน</div>
                                 </button>
@@ -177,7 +177,7 @@ export default function CheckoutPage() {
                             </h3>
 
                             <div className="space-y-3 mb-4">
-                                {weeklyBox.ingredients.map((item) => (
+                                {weeklyBox.items.map(item => item.ingredient).map((item) => (
                                     <div key={item.id} className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                             <span className="text-xl">{item.image}</span>
@@ -199,7 +199,7 @@ export default function CheckoutPage() {
                                     <span className="text-[var(--color-text-light)]">ค่าจัดส่ง</span>
                                     <span>฿{deliveryFee}</span>
                                 </div>
-                                {discount > 0 && (
+                                {plan === 'monthly' && (
                                     <div className="flex justify-between text-sm text-[var(--color-success)]">
                                         <span>ส่วนลดแผนรายเดือน (10%)</span>
                                         <span>-฿{discountAmount}</span>

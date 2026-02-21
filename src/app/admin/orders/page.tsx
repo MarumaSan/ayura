@@ -23,7 +23,7 @@ export default function OrdersPage() {
     );
     const ingredientNeeded: Record<string, { name: string; count: number; image: string }> = {};
     pendingOrders.forEach((order) => {
-        order.box.ingredients.forEach((item) => {
+        order.box.items.map(item => item.ingredient).forEach((item) => {
             if (ingredientNeeded[item.id]) {
                 ingredientNeeded[item.id].count++;
             } else {
@@ -34,7 +34,7 @@ export default function OrdersPage() {
 
     // Zero waste calculation
     const totalStockUsed = pendingOrders.reduce(
-        (sum, o) => sum + o.box.ingredients.length,
+        (sum, o) => sum + o.box.items.map(item => item.ingredient).length,
         0
     );
     const totalStock = ingredients.reduce((sum, i) => sum + i.inStock, 0);
@@ -159,7 +159,7 @@ export default function OrdersPage() {
                                     </div>
 
                                     <div className="flex items-center gap-2 mb-3">
-                                        {order.box.ingredients.map((item) => (
+                                        {order.box.items.map(item => item.ingredient).map((item) => (
                                             <div
                                                 key={item.id}
                                                 className="w-8 h-8 rounded-lg bg-[var(--color-bg-section)] flex items-center justify-center text-lg"
@@ -169,7 +169,7 @@ export default function OrdersPage() {
                                             </div>
                                         ))}
                                         <span className="text-xs text-[var(--color-text-muted)] ml-1">
-                                            {order.box.ingredients.length} ชิ้น
+                                            {order.box.items.map(item => item.ingredient).length} ชิ้น
                                         </span>
                                     </div>
 
