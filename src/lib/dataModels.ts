@@ -1,5 +1,5 @@
 import { Ingredient, RecipeData, BoxItem } from './types';
-import { ingredients } from './mockData';
+import { ingredients } from './data/ingredients';
 
 /**
  * Model class for a single Recipe. 
@@ -10,7 +10,7 @@ export class RecipeModel {
     public name: string;
     public description: string;
     public image: string;
-    public items: { ingredientId: string; amount: number }[]; // amount in base units
+    public items: { ingredientId: string; amountInGrams: number }[]; // amount in base units
     public cookTime: string;
     public mealType: 'เช้า' | 'กลางวัน' | 'เย็น' | 'ว่าง';
     public instructions: string[];
@@ -29,40 +29,56 @@ export class RecipeModel {
     /**
      * Resolves the full Ingredient objects for this recipe
      */
-    private getResolvedIngredients(): { ingredient: Ingredient; amount: number }[] {
+    private getResolvedIngredients(): { ingredient: Ingredient; amountInGrams: number }[] {
         return this.items.map((item) => {
-            const ing = ingredients.find((i) => i.id === item.ingredientId);
+            const ing = ingredients.find((i: any) => i.id === item.ingredientId);
             if (!ing) throw new Error(`Ingredient ${item.ingredientId} not found`);
-            return { ingredient: ing, amount: item.amount };
+            return { ingredient: ing, amountInGrams: item.amountInGrams };
         });
     }
 
     public get calories(): number {
-        return this.getResolvedIngredients().reduce(
-            (sum, item) => sum + item.ingredient.calories * item.amount,
+        const val = this.getResolvedIngredients().reduce(
+            (sum, item) => sum + (item.ingredient.calories * item.amountInGrams) / parseInt(item.ingredient.servingSize || '100'),
             0
         );
+        return Math.round(val * 10) / 10;
     }
 
     public get protein(): number {
-        return this.getResolvedIngredients().reduce(
-            (sum, item) => sum + item.ingredient.protein * item.amount,
+        const val = this.getResolvedIngredients().reduce(
+            (sum, item) => sum + (item.ingredient.protein * item.amountInGrams) / parseInt(item.ingredient.servingSize || '100'),
             0
         );
+        return Math.round(val * 10) / 10;
     }
 
     public get carbs(): number {
-        return this.getResolvedIngredients().reduce(
-            (sum, item) => sum + item.ingredient.carbs * item.amount,
+        const val = this.getResolvedIngredients().reduce(
+            (sum, item) => sum + (item.ingredient.carbs * item.amountInGrams) / parseInt(item.ingredient.servingSize || '100'),
             0
         );
+        return Math.round(val * 10) / 10;
     }
 
     public get fat(): number {
-        return this.getResolvedIngredients().reduce(
-            (sum, item) => sum + item.ingredient.fat * item.amount,
+        const val = this.getResolvedIngredients().reduce(
+            (sum, item) => sum + (item.ingredient.fat * item.amountInGrams) / parseInt(item.ingredient.servingSize || '100'),
             0
         );
+        return Math.round(val * 10) / 10;
+    }
+
+    public scale(factor: number): void {
+        this.items.forEach(item => {
+            item.amountInGrams *= factor;
+        });
+
+        // Update name
+        const formattedScale = (Math.round(factor * 10) / 10).toString();
+        if (!this.name.includes('(x')) {
+            this.name = `${this.name} (x${formattedScale} เสิร์ฟ)`;
+        }
     }
 }
 
@@ -84,38 +100,43 @@ export class WeeklyBoxModel {
     }
 
     public get totalPrice(): number {
-        return this.items.reduce(
+        const val = this.items.reduce(
             (sum, item) => sum + item.ingredient.pricePerUnit * item.quantity,
             0
         );
+        return Math.round(val * 10) / 10;
     }
 
     public get totalCalories(): number {
-        return this.items.reduce(
+        const val = this.items.reduce(
             (sum, item) => sum + item.ingredient.calories * item.quantity,
             0
         );
+        return Math.round(val * 10) / 10;
     }
 
     public get totalProtein(): number {
-        return this.items.reduce(
+        const val = this.items.reduce(
             (sum, item) => sum + item.ingredient.protein * item.quantity,
             0
         );
+        return Math.round(val * 10) / 10;
     }
 
     public get totalCarbs(): number {
-        return this.items.reduce(
+        const val = this.items.reduce(
             (sum, item) => sum + item.ingredient.carbs * item.quantity,
             0
         );
+        return Math.round(val * 10) / 10;
     }
 
     public get totalFat(): number {
-        return this.items.reduce(
+        const val = this.items.reduce(
             (sum, item) => sum + item.ingredient.fat * item.quantity,
             0
         );
+        return Math.round(val * 10) / 10;
     }
 
     public get ingredients(): Ingredient[] {

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { generateWeeklyBox, calculateBMI, generateDailyMealPlan } from '@/lib/aiRecommendation';
-import { elementDescriptions, ingredients } from '@/lib/mockData';
+import { ingredients } from '@/lib/data/ingredients';
 import { ThaiElement, HealthGoal, WeeklyBox, BMRResult, DailyMealPlan } from '@/lib/types';
 import { NutritionCalculator } from '@/lib/nutritionCalculator';
 
@@ -29,7 +29,7 @@ export default function DashboardPage() {
         if (stored) {
             const parsed = JSON.parse(stored);
             setProfile(parsed);
-            const box = generateWeeklyBox(parsed.element, parsed.healthGoals, 8);
+            const box = generateWeeklyBox(parsed.healthGoals, 8);
             setWeeklyBox(box);
             const calculator = new NutritionCalculator(parsed.weight, parsed.height, parsed.age, parsed.gender, parsed.healthGoals);
             const bmr = calculator.getTargetNutrition();
@@ -47,7 +47,7 @@ export default function DashboardPage() {
                 healthGoals: ['ลดน้ำหนัก', 'ลดความเครียด'] as HealthGoal[],
             };
             setProfile(defaultProfile);
-            const box = generateWeeklyBox(defaultProfile.element, defaultProfile.healthGoals, 8);
+            const box = generateWeeklyBox(defaultProfile.healthGoals, 8);
             setWeeklyBox(box);
             const calculator = new NutritionCalculator(defaultProfile.weight, defaultProfile.height, defaultProfile.age, defaultProfile.gender, defaultProfile.healthGoals);
             const bmr = calculator.getTargetNutrition();
@@ -69,7 +69,6 @@ export default function DashboardPage() {
     }
 
     const bmi = calculateBMI(profile.weight, profile.height);
-    const elementInfo = elementDescriptions[profile.element];
 
     const mealTypeLabels: Record<string, { label: string; emoji: string; time: string }> = {
         'เช้า': { label: 'มื้อเช้า', emoji: '🌅', time: '07:00 - 08:30' },
@@ -103,18 +102,17 @@ export default function DashboardPage() {
                         {/* Profile Card */}
                         <div className="glass-card p-6 animate-fade-in">
                             <div className="text-center">
-                                <div
-                                    className="w-20 h-20 rounded-full mx-auto flex items-center justify-center text-4xl mb-3"
-                                    style={{ backgroundColor: elementInfo.color + '20' }}
-                                >
-                                    {elementInfo.emoji}
-                                </div>
-                                <h3 className="text-lg font-bold">{profile.name}</h3>
-                                <div
-                                    className="inline-block text-sm font-medium px-3 py-1 rounded-full text-white mt-2"
-                                    style={{ backgroundColor: elementInfo.color }}
-                                >
-                                    ธาตุ{profile.element}
+                                <div className="text-secondary opacity-80 mb-2">ธาตุของคุณ</div>
+                                <div className="flex items-center gap-3 justify-center">
+                                    <div
+                                        className="w-10 h-10 rounded-full flex items-center justify-center text-lg"
+                                        style={{ backgroundColor: 'currentColor' + '20' }}
+                                    >
+                                        👤
+                                    </div>
+                                    <span className="font-bold text-lg" style={{ color: 'currentColor' }}>
+                                        ธาตุ{profile.element}
+                                    </span>
                                 </div>
                             </div>
 
@@ -192,7 +190,7 @@ export default function DashboardPage() {
                                 <div>
                                     <div className="flex justify-between text-sm mb-1">
                                         <span>🔴 โปรตีน</span>
-                                        <span className="font-medium">{mealPlan.totalProtein}g / {bmrResult.targetProtein}g</span>
+                                        <span className="font-medium">{Number(mealPlan.totalProtein.toFixed(1))}g / {bmrResult.targetProtein}g</span>
                                     </div>
                                     <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
                                         <div className="h-full bg-gradient-to-r from-red-400 to-red-500 rounded-full transition-all duration-1000" style={{ width: `${proteinPercent}%` }}></div>
@@ -201,7 +199,7 @@ export default function DashboardPage() {
                                 <div>
                                     <div className="flex justify-between text-sm mb-1">
                                         <span>🟡 คาร์โบไฮเดรต</span>
-                                        <span className="font-medium">{mealPlan.totalCarbs}g / {bmrResult.targetCarbs}g</span>
+                                        <span className="font-medium">{Number(mealPlan.totalCarbs.toFixed(1))}g / {bmrResult.targetCarbs}g</span>
                                     </div>
                                     <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
                                         <div className="h-full bg-gradient-to-r from-yellow-400 to-amber-500 rounded-full transition-all duration-1000" style={{ width: `${carbsPercent}%` }}></div>
@@ -210,7 +208,7 @@ export default function DashboardPage() {
                                 <div>
                                     <div className="flex justify-between text-sm mb-1">
                                         <span>🟢 ไขมัน</span>
-                                        <span className="font-medium">{mealPlan.totalFat}g / {bmrResult.targetFat}g</span>
+                                        <span className="font-medium">{Number(mealPlan.totalFat.toFixed(1))}g / {bmrResult.targetFat}g</span>
                                     </div>
                                     <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
                                         <div className="h-full bg-gradient-to-r from-green-400 to-green-500 rounded-full transition-all duration-1000" style={{ width: `${fatPercent}%` }}></div>
@@ -221,7 +219,7 @@ export default function DashboardPage() {
                                     <div className="flex justify-between text-sm mb-1">
                                         <span className="font-medium">🔋 แคลอรี่รวม</span>
                                         <span className="font-bold text-[var(--color-primary)]">
-                                            {mealPlan.totalCalories} / {bmrResult.targetCalories} kcal
+                                            {Number(mealPlan.totalCalories.toFixed(1))} / {bmrResult.targetCalories} kcal
                                         </span>
                                     </div>
                                     <div className="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
@@ -286,19 +284,19 @@ export default function DashboardPage() {
                                 <div className="glass-card p-4">
                                     <div className="grid grid-cols-4 gap-3 text-center">
                                         <div className="p-2 bg-orange-50 rounded-xl">
-                                            <div className="text-lg font-bold text-orange-600">{mealPlan.totalCalories}</div>
+                                            <div className="text-lg font-bold text-orange-600">{Number(mealPlan.totalCalories.toFixed(1))}</div>
                                             <div className="text-xs text-orange-400">kcal</div>
                                         </div>
                                         <div className="p-2 bg-red-50 rounded-xl">
-                                            <div className="text-lg font-bold text-red-600">{mealPlan.totalProtein}g</div>
+                                            <div className="text-lg font-bold text-red-600">{Number(mealPlan.totalProtein.toFixed(1))}g</div>
                                             <div className="text-xs text-red-400">โปรตีน</div>
                                         </div>
                                         <div className="p-2 bg-yellow-50 rounded-xl">
-                                            <div className="text-lg font-bold text-amber-600">{mealPlan.totalCarbs}g</div>
+                                            <div className="text-lg font-bold text-amber-600">{Number(mealPlan.totalCarbs.toFixed(1))}g</div>
                                             <div className="text-xs text-amber-400">คาร์บ</div>
                                         </div>
                                         <div className="p-2 bg-green-50 rounded-xl">
-                                            <div className="text-lg font-bold text-green-600">{mealPlan.totalFat}g</div>
+                                            <div className="text-lg font-bold text-green-600">{Number(mealPlan.totalFat.toFixed(1))}g</div>
                                             <div className="text-xs text-green-400">ไขมัน</div>
                                         </div>
                                     </div>
@@ -378,18 +376,22 @@ export default function DashboardPage() {
                                                             🧅 วัตถุดิบที่ใช้
                                                         </h5>
                                                         <div className="flex flex-wrap gap-2">
-                                                            {mealIngredients.map((ing) => (
-                                                                <div
-                                                                    key={ing!.id}
-                                                                    className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full border border-gray-100 shadow-sm"
-                                                                >
-                                                                    <span className="text-lg">{ing!.image}</span>
-                                                                    <span className="text-xs font-medium">{ing!.name}</span>
-                                                                    <span className="text-xs text-[var(--color-text-muted)]">
-                                                                        {ing!.calories} kcal/{ing!.servingSize}
-                                                                    </span>
-                                                                </div>
-                                                            ))}
+                                                            {meal.recipe.items.map((item, idx) => {
+                                                                const ing = ingredients.find(i => i.id === item.ingredientId);
+                                                                if (!ing) return null;
+                                                                return (
+                                                                    <div
+                                                                        key={`${ing.id}-${idx}`}
+                                                                        className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full border border-gray-100 shadow-sm"
+                                                                    >
+                                                                        <span className="text-lg">{ing.image}</span>
+                                                                        <span className="text-xs font-medium">{ing.name} ({item.amountInGrams} กรัม)</span>
+                                                                        <span className="text-xs text-[var(--color-text-muted)]">
+                                                                            {ing.calories} kcal/{ing.servingSize}
+                                                                        </span>
+                                                                    </div>
+                                                                );
+                                                            })}
                                                         </div>
                                                     </div>
 
@@ -456,7 +458,7 @@ export default function DashboardPage() {
                                                         <div className="flex items-center gap-2">
                                                             <h4 className="font-bold text-sm">{ingredient.name}</h4>
                                                             <span className="text-xs px-2 py-0.5 bg-[var(--color-primary)]/20 text-[var(--color-primary)] rounded-full font-semibold">
-                                                                {item.quantity} x {ingredient.servingSize}
+                                                                {item.amountInGrams} กรัม
                                                             </span>
                                                             <span className="text-xs px-2 py-0.5 bg-[var(--color-secondary)]/20 text-[var(--color-secondary)] rounded-full">
                                                                 {ingredient.category}

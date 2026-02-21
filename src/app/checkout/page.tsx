@@ -12,16 +12,20 @@ export default function CheckoutPage() {
     const [phone, setPhone] = useState('');
     const [showSuccess, setShowSuccess] = useState(false);
     const [profileName, setProfileName] = useState('');
+    const [profile, setProfile] = useState<any>(null); // Added profile state
 
     useEffect(() => {
         const stored = localStorage.getItem('ayura-profile');
         if (stored) {
             const parsed = JSON.parse(stored);
+            setProfile(parsed);
             setProfileName(parsed.name);
-            const box = generateWeeklyBox(parsed.element, parsed.healthGoals, 8);
+            // Replace with simplified parameters avoiding element
+            const box = generateWeeklyBox(parsed.healthGoals, 8);
             setWeeklyBox(box);
         } else {
-            const box = generateWeeklyBox('ไฟ' as ThaiElement, ['ลดน้ำหนัก'] as HealthGoal[], 8);
+            // Replace with simplified parameters avoiding element
+            const box = generateWeeklyBox(['ลดน้ำหนัก'] as HealthGoal[], 8);
             setWeeklyBox(box);
             setProfileName('ผู้ใช้ตัวอย่าง');
         }

@@ -11,23 +11,22 @@ import {
     SubscriptionTier,
     MealPlanSubscription
 } from './types';
-import { ingredients as allIngredients, recipes } from './mockData';
+import { ingredients as allIngredients } from './data/ingredients';
+import { recipes } from './data/recipes';
 import { NutritionCalculator } from './nutritionCalculator';
 import { RecipeModel } from './dataModels';
 
 /**
- * AI Recommendation Engine (Rule-based matching)
- * จับคู่วัตถุดิบตามธาตุเจ้าเรือนและเป้าหมายสุขภาพ
+ * AI Recommendation Engine
+ * จับคู่วัตถุดิบตามเป้าหมายสุขภาพ
  */
 export function getRecommendedIngredients(
-    element: ThaiElement,
     goals: HealthGoal[],
     maxItems: number = 6
 ): Ingredient[] {
     // Score each ingredient    // 1. กรองวัตถุดิบและให้คะแนนตามความเหมาะสม
     const scoredIngredients = allIngredients.map((ingredient: Ingredient) => {
         let score = 0;
-        if (ingredient.suitableElements.includes(element)) score += 3;
         ingredient.suitableGoals.forEach((g: string) => {
             if (goals.includes(g as HealthGoal)) score += 2;
         });
@@ -48,11 +47,10 @@ export function getRecommendedIngredients(
  * สร้างกล่องสุขภาพรายสัปดาห์
  */
 export function generateWeeklyBox(
-    element: ThaiElement,
     goals: HealthGoal[],
     weekNumber: number = 1
 ): WeeklyBox {
-    const recommended = getRecommendedIngredients(element, goals);
+    const recommended = getRecommendedIngredients(goals);
     const totalPrice = recommended.reduce((sum, item) => sum + item.pricePerUnit, 0);
 
     // Calculate match score based on how well ingredients match
@@ -60,16 +58,14 @@ export function generateWeeklyBox(
         100,
         Math.round(
             (recommended.filter(
-                (i) =>
-                    i.suitableElements.includes(element) &&
-                    i.suitableGoals.some((g) => goals.includes(g))
+                (i: Ingredient) => i.suitableGoals.some((g) => goals.includes(g as HealthGoal))
             ).length /
                 recommended.length) *
             100
         )
     );
 
-    const boxItems: BoxItem[] = recommended.map(ing => ({ ingredient: ing, quantity: 1 }));
+    const boxItems: BoxItem[] = recommended.map(ing => ({ ingredient: ing, quantity: 1, amountInGrams: 500 }));
 
     return {
         id: `box-${weekNumber}`,
@@ -193,14 +189,14 @@ export function generateDailyMealPlan(
     const meals: { type: 'เช้า' | 'กลางวัน' | 'เย็น' | 'ว่าง'; recipe: Recipe }[] = [];
 
     if (mealsPerDay >= 2) {
-        meals.push({ type: 'เช้า', recipe: { ...findBestMeal('เช้า') } });
-        meals.push({ type: 'กลางวัน', recipe: { ...findBestMeal('กลางวัน') } });
+        meals.push({ type: 'เช้า', recipe: findBestMeal('เช้า') });
+        meals.push({ type: 'กลางวัน', recipe: findBestMeal('กลางวัน') });
     }
     if (mealsPerDay >= 3) {
-        meals.push({ type: 'เย็น', recipe: { ...findBestMeal('เย็น') } });
+        meals.push({ type: 'เย็น', recipe: findBestMeal('เย็น') });
     }
     // ว่างเสมอ
-    meals.push({ type: 'ว่าง', recipe: { ...findBestMeal('ว่าง') } });
+    meals.push({ type: 'ว่าง', recipe: findBestMeal('ว่าง') });
 
     // Delegate scaling to NutritionCalculator (OOP)
     const optimized = calculator.optimizeDailyMeals(meals);
@@ -243,9 +239,9 @@ export function generateWeeklyMealPlan(
         prevDayRecipeIds = dayPlan.meals.map((m) => m.recipe.id);
     }
 
-    const totalProtein = days.reduce((sum, d) => sum + d.totalProtein, 0);
-    const totalCarbs = days.reduce((sum, d) => sum + d.totalCarbs, 0);
-    const totalFat = days.reduce((sum, d) => sum + d.totalFat, 0);
+    const totalProtein = Math.round(days.reduce((sum, d) => sum + d.totalProtein, 0) * 10) / 10;
+    const totalCarbs = Math.round(days.reduce((sum, d) => sum + d.totalCarbs, 0) * 10) / 10;
+    const totalFat = Math.round(days.reduce((sum, d) => sum + d.totalFat, 0) * 10) / 10;
     const avgCaloriesPerDay = Math.round(days.reduce((sum, d) => sum + d.totalCalories, 0) / 7);
 
     return {
@@ -264,7 +260,6 @@ export function generateWeeklyMealPlan(
  * monthly → 4 สัปดาห์, 3 มื้อ + ว่าง
  */
 export function generateMealPlanSubscription(
-    element: ThaiElement,
     goals: HealthGoal[],
     tier: SubscriptionTier,
     weight: number,
@@ -272,7 +267,7 @@ export function generateMealPlanSubscription(
     age: number,
     gender: 'ชาย' | 'หญิง' | 'อื่นๆ'
 ): MealPlanSubscription {
-    const recommended = getRecommendedIngredients(element, goals);
+    const recommended = getRecommendedIngredients(goals);
     const calculator = new NutritionCalculator(weight, height, age, gender, goals);
     const mealsPerDay: 2 | 3 = 3;
     const weekCount = tier === 'monthly' ? 4 : 1;
@@ -289,5 +284,4 @@ export function generateMealPlanSubscription(
         startDate: new Date().toISOString().split('T')[0],
     };
 }
-
 

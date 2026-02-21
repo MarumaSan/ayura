@@ -96,21 +96,26 @@ export class NutritionCalculator {
         // Keep a reasonable max scale factor so it does not get absurd
         const safeScaleFactor = Math.min(Math.max(scaleFactor, 1), 5);
 
-        if (safeScaleFactor > 1) {
-            meals.forEach((meal) => {
-                meal.recipe.calories = Math.round((meal.recipe.calories || 0) * safeScaleFactor);
-                meal.recipe.protein = Math.round((meal.recipe.protein || 0) * safeScaleFactor * 10) / 10;
-                meal.recipe.carbs = Math.round((meal.recipe.carbs || 0) * safeScaleFactor * 10) / 10;
-                meal.recipe.fat = Math.round((meal.recipe.fat || 0) * safeScaleFactor * 10) / 10;
+        // --- [FEATURE DISABLED: USER REQUESTED STATIC ALLOCATIONS] ---
+        // if (safeScaleFactor > 1) {
+        //     meals.forEach((meal) => {
+        //         const recipeInstance = meal.recipe as any;
+        //         if (typeof recipeInstance.scale === 'function') {
+        //             recipeInstance.scale(safeScaleFactor);
+        //         } else {
+        //             // Fallback
+        //             meal.recipe.calories = Math.round((meal.recipe.calories || 0) * safeScaleFactor);
+        //             meal.recipe.protein = Math.round((meal.recipe.protein || 0) * safeScaleFactor * 10) / 10;
+        //             meal.recipe.carbs = Math.round((meal.recipe.carbs || 0) * safeScaleFactor * 10) / 10;
+        //             meal.recipe.fat = Math.round((meal.recipe.fat || 0) * safeScaleFactor * 10) / 10;
 
-                // Limit to 1 decimal place for readability
-                const formattedScale = (Math.round(safeScaleFactor * 10) / 10).toString();
-                // Append scaling text only if it hasn't been appended before
-                if (!meal.recipe.name.includes('(x')) {
-                    meal.recipe.name = `${meal.recipe.name} (x${formattedScale} เสิร์ฟ)`;
-                }
-            });
-        }
+        //             const formattedScale = (Math.round(safeScaleFactor * 10) / 10).toString();
+        //             if (!meal.recipe.name.includes('(x')) {
+        //                 meal.recipe.name = `${meal.recipe.name} (x${formattedScale} เสิร์ฟ)`;
+        //             }
+        //         }
+        //     });
+        // }
 
         const totalCalories = meals.reduce((sum, m) => sum + (m.recipe.calories || 0), 0);
         const totalProtein = meals.reduce((sum, m) => sum + (m.recipe.protein || 0), 0);

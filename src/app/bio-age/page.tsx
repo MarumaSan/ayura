@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { mockUser, bioAgeHistory, rewards } from '@/lib/mockData';
+import { mockUser, bioAgeHistory } from '@/lib/data/users';
+import { rewards } from '@/lib/data/system';
 import { UserProfile } from '@/lib/types';
 
 export default function BioAgePage() {
@@ -134,7 +135,7 @@ export default function BioAgePage() {
                             <div className="relative h-64">
                                 {/* Simple bar chart */}
                                 <div className="absolute inset-0 flex items-end gap-3 px-2">
-                                    {bioAgeHistory.map((entry, i) => {
+                                    {bioAgeHistory.map((entry: any, i: number) => {
                                         const maxAge = 35;
                                         const minAge = 25;
                                         const bioHeight = ((entry.bioAge - minAge) / (maxAge - minAge)) * 100;
@@ -206,14 +207,14 @@ export default function BioAgePage() {
                                 🎁 แลกของรางวัล
                             </h3>
                             <div className="space-y-3">
-                                {rewards.map((reward) => {
+                                {rewards.map((reward: any) => {
                                     const canRedeem = user.points >= reward.pointsRequired;
                                     return (
                                         <div
                                             key={reward.id}
                                             className={`p-4 rounded-xl border transition-all ${canRedeem
-                                                    ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/5 hover-lift cursor-pointer'
-                                                    : 'border-[var(--color-border)] bg-gray-50 opacity-70'
+                                                ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/5 hover-lift cursor-pointer'
+                                                : 'border-[var(--color-border)] bg-gray-50 opacity-70'
                                                 }`}
                                         >
                                             <div className="flex items-start gap-3">

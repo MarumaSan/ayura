@@ -2,10 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ingredients } from '@/lib/mockData';
+import { ingredients, categories } from '@/lib/data/ingredients';
 import { Ingredient } from '@/lib/types';
-
-const categories = ['ทั้งหมด', 'ผัก', 'สมุนไพร', 'ผลไม้', 'โปรตีน', 'ธัญพืช'];
 
 function getStockStatus(stock: number): { label: string; color: string; bg: string } {
     if (stock > 100) return { label: 'พร้อมส่ง', color: 'var(--color-success)', bg: 'rgba(16,185,129,0.1)' };
@@ -94,13 +92,13 @@ export default function InventoryPage() {
                             />
                         </div>
                         <div className="flex gap-2 flex-wrap">
-                            {categories.map((cat) => (
+                            {categories.map((cat: string) => (
                                 <button
                                     key={cat}
                                     onClick={() => setSelectedCategory(cat)}
                                     className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${selectedCategory === cat
-                                            ? 'gradient-primary text-white shadow-md'
-                                            : 'bg-white border border-[var(--color-border)] text-[var(--color-text-light)] hover:border-[var(--color-primary)]/30'
+                                        ? 'gradient-primary text-white shadow-md'
+                                        : 'bg-white border border-[var(--color-border)] text-[var(--color-text-light)] hover:border-[var(--color-primary)]/30'
                                         }`}
                                 >
                                     {cat}

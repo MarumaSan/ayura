@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { generateMealPlanSubscription, generateWeeklyBox } from '@/lib/aiRecommendation';
-import { ingredients } from '@/lib/mockData';
-import { ThaiElement, HealthGoal, MealPlanSubscription, SubscriptionTier, WeeklyBox } from '@/lib/types';
+import { ingredients } from '@/lib/data/ingredients';
+import { HealthGoal, MealPlanSubscription, SubscriptionTier, WeeklyBox } from '@/lib/types';
 import { PricingManager } from '@/lib/pricingManager';
 
 const getTierInfo = (pricing: PricingManager): Record<SubscriptionTier, {
@@ -54,14 +54,12 @@ export default function MealPlanPage() {
 
     useEffect(() => {
         const stored = localStorage.getItem('ayura-profile');
-        let element: ThaiElement = 'ไฟ';
         let goals: HealthGoal[] = ['ลดน้ำหนัก', 'ลดความเครียด'];
         let weight = 70, height = 170, age = 30;
         let gender: 'ชาย' | 'หญิง' | 'อื่นๆ' = 'ชาย';
 
         if (stored) {
             const parsed = JSON.parse(stored);
-            element = parsed.element;
             goals = parsed.healthGoals;
             weight = parsed.weight;
             height = parsed.height;
@@ -69,8 +67,8 @@ export default function MealPlanPage() {
             gender = parsed.gender;
         }
 
-        const sub = generateMealPlanSubscription(element, goals, tier, weight, height, age, gender);
-        const box = generateWeeklyBox(element, goals, 1);
+        const sub = generateMealPlanSubscription(goals, tier, weight, height, age, gender);
+        const box = generateWeeklyBox(goals, 1);
 
         setSubscription(sub);
         setWeeklyBox(box);
@@ -206,19 +204,19 @@ export default function MealPlanPage() {
                             </h4>
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="p-3 bg-orange-50 rounded-xl text-center">
-                                    <div className="text-xl font-bold text-orange-600">{currentDay.totalCalories}</div>
+                                    <div className="text-xl font-bold text-orange-600">{Number(currentDay.totalCalories.toFixed(1))}</div>
                                     <div className="text-[10px] text-orange-400 font-medium">kcal</div>
                                 </div>
                                 <div className="p-3 bg-red-50 rounded-xl text-center">
-                                    <div className="text-xl font-bold text-red-600">{currentDay.totalProtein}g</div>
+                                    <div className="text-xl font-bold text-red-600">{Number(currentDay.totalProtein.toFixed(1))}g</div>
                                     <div className="text-[10px] text-red-400 font-medium">โปรตีน</div>
                                 </div>
                                 <div className="p-3 bg-yellow-50 rounded-xl text-center">
-                                    <div className="text-xl font-bold text-amber-600">{currentDay.totalCarbs}g</div>
+                                    <div className="text-xl font-bold text-amber-600">{Number(currentDay.totalCarbs.toFixed(1))}g</div>
                                     <div className="text-[10px] text-amber-400 font-medium">คาร์บ</div>
                                 </div>
                                 <div className="p-3 bg-green-50 rounded-xl text-center">
-                                    <div className="text-xl font-bold text-green-600">{currentDay.totalFat}g</div>
+                                    <div className="text-xl font-bold text-green-600">{Number(currentDay.totalFat.toFixed(1))}g</div>
                                     <div className="text-[10px] text-green-400 font-medium">ไขมัน</div>
                                 </div>
                             </div>
@@ -236,15 +234,15 @@ export default function MealPlanPage() {
                                 </div>
                                 <div className="flex justify-between items-center p-3 bg-[var(--color-bg-section)] rounded-xl">
                                     <span className="text-sm text-[var(--color-text-light)]">โปรตีนรวม</span>
-                                    <span className="font-bold text-red-500">{currentWeek.totalProtein}g</span>
+                                    <span className="font-bold text-red-500">{Number(currentWeek.totalProtein.toFixed(1))}g</span>
                                 </div>
                                 <div className="flex justify-between items-center p-3 bg-[var(--color-bg-section)] rounded-xl">
                                     <span className="text-sm text-[var(--color-text-light)]">คาร์บรวม</span>
-                                    <span className="font-bold text-amber-500">{currentWeek.totalCarbs}g</span>
+                                    <span className="font-bold text-amber-500">{Number(currentWeek.totalCarbs.toFixed(1))}g</span>
                                 </div>
                                 <div className="flex justify-between items-center p-3 bg-[var(--color-bg-section)] rounded-xl">
                                     <span className="text-sm text-[var(--color-text-light)]">ไขมันรวม</span>
-                                    <span className="font-bold text-green-500">{currentWeek.totalFat}g</span>
+                                    <span className="font-bold text-green-500">{Number(currentWeek.totalFat.toFixed(1))}g</span>
                                 </div>
                             </div>
                         </div>
@@ -261,7 +259,7 @@ export default function MealPlanPage() {
                                     </h3>
                                     <p className="text-sm text-[var(--color-text-muted)]">
                                         {subscription.weeks.length > 1 && `สัปดาห์ ${currentWeek.weekNumber} • `}
-                                        {currentDay.meals.length} เมนู • {currentDay.totalCalories} kcal
+                                        {currentDay.meals.length} เมนู • {Number(currentDay.totalCalories.toFixed(1))} kcal
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -295,7 +293,7 @@ export default function MealPlanPage() {
                                 const mealInfo = mealTypeLabels[meal.type];
                                 const isExpanded = expandedRecipe === `${selectedWeek}-${selectedDay}-${meal.recipe.id}`;
                                 const mealIngredients = meal.recipe.items.map(item => item.ingredientId)
-                                    .map((id) => ingredients.find((ing) => ing.id === id))
+                                    .map((id) => ingredients.find((ing: any) => ing.id === id))
                                     .filter(Boolean);
 
                                 return (
@@ -364,18 +362,22 @@ export default function MealPlanPage() {
                                                         🧅 วัตถุดิบที่ใช้
                                                     </h5>
                                                     <div className="flex flex-wrap gap-2">
-                                                        {mealIngredients.map((ing) => (
-                                                            <div
-                                                                key={ing!.id}
-                                                                className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full border border-gray-100 shadow-sm"
-                                                            >
-                                                                <span className="text-lg">{ing!.image}</span>
-                                                                <span className="text-xs font-medium">{ing!.name}</span>
-                                                                <span className="text-xs text-[var(--color-text-muted)]">
-                                                                    {ing!.calories} kcal/{ing!.servingSize}
-                                                                </span>
-                                                            </div>
-                                                        ))}
+                                                        {meal.recipe.items.map((item, idx) => {
+                                                            const ing = ingredients.find(i => i.id === item.ingredientId);
+                                                            if (!ing) return null;
+                                                            return (
+                                                                <div
+                                                                    key={`${ing.id}-${idx}`}
+                                                                    className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full border border-gray-100 shadow-sm"
+                                                                >
+                                                                    <span className="text-lg">{ing.image}</span>
+                                                                    <span className="text-xs font-medium">{ing.name} ({item.amountInGrams} กรัม)</span>
+                                                                    <span className="text-[10px] text-[var(--color-text-muted)]">
+                                                                        {ing.calories} kcal/{ing.servingSize}
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        })}
                                                     </div>
                                                 </div>
 

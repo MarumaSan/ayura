@@ -34,7 +34,6 @@ export interface Ingredient {
     category: 'ผัก' | 'สมุนไพร' | 'ผลไม้' | 'โปรตีน' | 'ธัญพืช';
     image: string;
     benefits: string;
-    suitableElements: ThaiElement[];
     suitableGoals: HealthGoal[];
     community: string;
     pricePerUnit: number;
@@ -59,7 +58,8 @@ export interface Community {
 
 export interface BoxItem {
     ingredient: Ingredient;
-    quantity: number; // e.g., 2
+    quantity: number; // e.g., 1 (pack/bag)
+    amountInGrams: number; // For explicit absolute calculation overrides
 }
 
 // กล่องสุขภาพรายสัปดาห์
@@ -134,7 +134,7 @@ export interface RecipeData {
     name: string;
     description: string;
     image: string;
-    items: { ingredientId: string; amount: number }[]; // Extracted from ID and scaled amount
+    items: { ingredientId: string; amountInGrams: number }[]; // Explicitly how many grams the user designates it
     cookTime: string; // e.g. "15 นาที"
     mealType: 'เช้า' | 'กลางวัน' | 'เย็น' | 'ว่าง';
     instructions: string[];
@@ -145,7 +145,7 @@ export interface Recipe {
     name: string;
     description: string;
     image: string;
-    items: { ingredientId: string; amount: number }[]; // ingredient IDs and base amounts used
+    items: { ingredientId: string; amountInGrams: number }[]; // User explicit amounts in grams
     calories?: number;
     protein?: number;
     carbs?: number;

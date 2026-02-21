@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { mockOrders, ingredients } from '@/lib/mockData';
+import { mockOrders } from '@/lib/data/orders';
+import { ingredients } from '@/lib/data/ingredients';
 
 const statusFilters = ['ทั้งหมด', 'รอจัดส่ง', 'กำลังจัดเตรียม', 'จัดส่งแล้ว', 'สำเร็จ'];
 
@@ -34,10 +35,10 @@ export default function OrdersPage() {
 
     // Zero waste calculation
     const totalStockUsed = pendingOrders.reduce(
-        (sum, o) => sum + o.box.items.map(item => item.ingredient).length,
+        (sum: number, o: any) => sum + o.box.items.map((item: any) => item.ingredient).length,
         0
     );
-    const totalStock = ingredients.reduce((sum, i) => sum + i.inStock, 0);
+    const totalStock = ingredients.reduce((sum: number, i: any) => sum + i.inStock, 0);
     const usageRate = Math.round((totalStockUsed / totalStock) * 100);
 
     return (
@@ -109,8 +110,8 @@ export default function OrdersPage() {
                                     key={status}
                                     onClick={() => setSelectedStatus(status)}
                                     className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${selectedStatus === status
-                                            ? 'gradient-primary text-white shadow-md'
-                                            : 'bg-white border border-[var(--color-border)] text-[var(--color-text-light)] hover:border-[var(--color-primary)]/30'
+                                        ? 'gradient-primary text-white shadow-md'
+                                        : 'bg-white border border-[var(--color-border)] text-[var(--color-text-light)] hover:border-[var(--color-primary)]/30'
                                         }`}
                                 >
                                     {status}
@@ -135,12 +136,12 @@ export default function OrdersPage() {
                                                 </span>
                                                 <span
                                                     className={`text-xs px-3 py-1 rounded-full font-medium ${order.status === 'สำเร็จ'
-                                                            ? 'bg-[var(--color-success)]/10 text-[var(--color-success)]'
-                                                            : order.status === 'จัดส่งแล้ว'
-                                                                ? 'bg-blue-100 text-blue-600'
-                                                                : order.status === 'กำลังจัดเตรียม'
-                                                                    ? 'bg-yellow-100 text-yellow-600'
-                                                                    : 'bg-gray-100 text-gray-600'
+                                                        ? 'bg-[var(--color-success)]/10 text-[var(--color-success)]'
+                                                        : order.status === 'จัดส่งแล้ว'
+                                                            ? 'bg-blue-100 text-blue-600'
+                                                            : order.status === 'กำลังจัดเตรียม'
+                                                                ? 'bg-yellow-100 text-yellow-600'
+                                                                : 'bg-gray-100 text-gray-600'
                                                         }`}
                                                 >
                                                     {order.status}

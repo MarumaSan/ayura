@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { mockOrders, ingredients } from '@/lib/mockData';
+import { mockOrders } from '@/lib/data/orders';
+import { ingredients } from '@/lib/data/ingredients';
 
 export default function AdminPage() {
     const totalOrders = mockOrders.length;
@@ -132,12 +133,12 @@ export default function AdminPage() {
                                         </div>
                                         <span
                                             className={`text-xs px-2 py-0.5 rounded-full ${order.status === 'สำเร็จ'
-                                                    ? 'bg-[var(--color-success)]/10 text-[var(--color-success)]'
-                                                    : order.status === 'จัดส่งแล้ว'
-                                                        ? 'bg-blue-100 text-blue-600'
-                                                        : order.status === 'กำลังจัดเตรียม'
-                                                            ? 'bg-yellow-100 text-yellow-600'
-                                                            : 'bg-gray-100 text-gray-600'
+                                                ? 'bg-[var(--color-success)]/10 text-[var(--color-success)]'
+                                                : order.status === 'จัดส่งแล้ว'
+                                                    ? 'bg-blue-100 text-blue-600'
+                                                    : order.status === 'กำลังจัดเตรียม'
+                                                        ? 'bg-yellow-100 text-yellow-600'
+                                                        : 'bg-gray-100 text-gray-600'
                                                 }`}
                                         >
                                             {order.status}

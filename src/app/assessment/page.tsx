@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { elementQuestions, elementDescriptions } from '@/lib/mockData';
+import { elementQuestions, elementDescriptions } from '@/lib/data/system';
 import { calculateElement, calculateBMI } from '@/lib/aiRecommendation';
 import { ThaiElement, HealthGoal } from '@/lib/types';
 
@@ -85,8 +85,8 @@ export default function AssessmentPage() {
                             <div key={s} className="flex items-center">
                                 <div
                                     className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${s <= step
-                                            ? 'gradient-primary text-white shadow-lg'
-                                            : 'bg-gray-200 text-gray-400'
+                                        ? 'gradient-primary text-white shadow-lg'
+                                        : 'bg-gray-200 text-gray-400'
                                         }`}
                                 >
                                     {s < step ? '✓' : s}
@@ -219,8 +219,8 @@ export default function AssessmentPage() {
                                     key={goal}
                                     onClick={() => toggleGoal(goal)}
                                     className={`p-4 rounded-xl border-2 text-left transition-all duration-200 hover-lift ${selectedGoals.includes(goal)
-                                            ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/5 shadow-md'
-                                            : 'border-[var(--color-border)] bg-white hover:border-[var(--color-primary)]/30'
+                                        ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/5 shadow-md'
+                                        : 'border-[var(--color-border)] bg-white hover:border-[var(--color-primary)]/30'
                                         }`}
                                 >
                                     <div className="text-2xl mb-2">{goalIcons[goal]}</div>
@@ -265,14 +265,14 @@ export default function AssessmentPage() {
                             </p>
                             {/* Mini progress */}
                             <div className="flex justify-center gap-2 mt-4">
-                                {elementQuestions.map((_, i) => (
+                                {elementQuestions.map((_: any, i: number) => (
                                     <div
                                         key={i}
                                         className={`w-3 h-3 rounded-full transition-all ${i < currentQuestion
-                                                ? 'bg-[var(--color-primary)]'
-                                                : i === currentQuestion
-                                                    ? 'bg-[var(--color-secondary)] scale-125'
-                                                    : 'bg-gray-200'
+                                            ? 'bg-[var(--color-primary)]'
+                                            : i === currentQuestion
+                                                ? 'bg-[var(--color-secondary)] scale-125'
+                                                : 'bg-gray-200'
                                             }`}
                                     />
                                 ))}
@@ -285,7 +285,7 @@ export default function AssessmentPage() {
                             </h3>
 
                             <div className="space-y-3">
-                                {elementQuestions[currentQuestion].options.map((option, i) => (
+                                {elementQuestions[currentQuestion].options.map((option: any, i: number) => (
                                     <button
                                         key={i}
                                         onClick={() => handleElementAnswer(option.element)}
