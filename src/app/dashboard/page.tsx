@@ -512,16 +512,22 @@ export default function DashboardPage() {
                         {/* Actions */}
                         <div className="flex flex-col sm:flex-row gap-4 mt-6">
                             <Link
-                                href="/checkout"
+                                href="/meal-plan"
                                 className="btn-primary flex-1 justify-center !py-4 text-base"
                             >
-                                สั่งซื้อกล่องนี้ 🛒
+                                ดูแผนอาหารเต็ม 🍽️
+                            </Link>
+                            <Link
+                                href="/checkout"
+                                className="btn-outline flex-1 justify-center !py-4 text-base"
+                            >
+                                สั่งซื้อกล่อง 🛒
                             </Link>
                             <Link
                                 href="/bio-age"
                                 className="btn-outline flex-1 justify-center !py-4 text-base"
                             >
-                                ดูแต้มสุขภาพ ⭐
+                                แต้มสุขภาพ ⭐
                             </Link>
                         </div>
                     </div>

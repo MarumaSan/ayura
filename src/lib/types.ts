@@ -66,6 +66,9 @@ export interface WeeklyBox {
     matchScore: number; // 0-100
 }
 
+// Subscription tier
+export type SubscriptionTier = 'weekly' | 'monthly';
+
 // คำสั่งซื้อ
 export interface Order {
     id: string;
@@ -145,9 +148,28 @@ export interface Meal {
 
 // แผนอาหารรายวัน
 export interface DailyMealPlan {
+    dayLabel: string; // e.g. "วันจันทร์", "วันที่ 1"
     meals: Meal[];
     totalCalories: number;
     totalProtein: number;
     totalCarbs: number;
     totalFat: number;
+}
+
+// แผนอาหารรายสัปดาห์ (7 วัน)
+export interface WeeklyMealPlan {
+    weekNumber: number;
+    days: DailyMealPlan[];
+    avgCaloriesPerDay: number;
+    totalProtein: number;
+    totalCarbs: number;
+    totalFat: number;
+}
+
+// แผนอาหารตาม subscription
+export interface MealPlanSubscription {
+    tier: SubscriptionTier;
+    mealsPerDay: 2 | 3;
+    weeks: WeeklyMealPlan[];
+    startDate: string;
 }

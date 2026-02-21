@@ -1,4 +1,4 @@
-import { Ingredient, ThaiElement, HealthGoal, WeeklyBox, BMRResult, Recipe, DailyMealPlan } from './types';
+import { Ingredient, ThaiElement, HealthGoal, WeeklyBox, BMRResult, Recipe, DailyMealPlan, WeeklyMealPlan, MealPlanSubscription, SubscriptionTier } from './types';
 import { ingredients, recipes } from './mockData';
 
 /**
@@ -179,10 +179,18 @@ export function calculateBMR(
 /**
  * สร้างแผนอาหารรายวัน (2-3 มื้อ + ว่าง)
  * จับคู่สูตรอาหารจากวัตถุดิบที่แนะนำ
+ * @param recommendedIngredients - วัตถุดิบที่แนะนำ
+ * @param bmrResult - ผล BMR
+ * @param dayLabel - ชื่อวัน เช่น "วันจันทร์"
+ * @param mealsPerDay - จำนวนมื้อหลัก (2 หรือ 3)
+ * @param excludeRecipeIds - recipe IDs ที่ไม่ต้องการให้ซ้ำ
  */
 export function generateDailyMealPlan(
     recommendedIngredients: Ingredient[],
-    bmrResult: BMRResult
+    bmrResult: BMRResult,
+    dayLabel: string = 'วันนี้',
+    mealsPerDay: 2 | 3 = 3,
+    excludeRecipeIds: string[] = []
 ): DailyMealPlan {
     const ingredientIds = recommendedIngredients.map((i) => i.id);
 
@@ -194,24 +202,42 @@ export function generateDailyMealPlan(
     }).filter((r) => r.matchCount > 0)
         .sort((a, b) => b.matchRatio - a.matchRatio || b.matchCount - a.matchCount);
 
-    // เลือก 1 มื้อเช้า, 1 มื้อกลางวัน, 1 มื้อเย็น, 1 ว่าง
+    // เลือก meal โดยพยายามหลีกเลี่ยง recipe ที่ซ้ำจากวันก่อน
+    const usedIds: string[] = [];
     const findBestMeal = (type: string) => {
-        const meal = matchingRecipes.find((r) => r.recipe.mealType === type);
-        return meal?.recipe || recipes.find((r) => r.mealType === type)!;
+        // ลองหา recipe ที่ไม่ซ้ำกับ excludeRecipeIds ก่อน
+        const nonExcluded = matchingRecipes.find(
+            (r) => r.recipe.mealType === type && !excludeRecipeIds.includes(r.recipe.id) && !usedIds.includes(r.recipe.id)
+        );
+        if (nonExcluded) {
+            usedIds.push(nonExcluded.recipe.id);
+            return nonExcluded.recipe;
+        }
+        // fallback: หา recipe ที่ยังไม่ใช้ในวันนี้
+        const notUsedToday = matchingRecipes.find(
+            (r) => r.recipe.mealType === type && !usedIds.includes(r.recipe.id)
+        );
+        if (notUsedToday) {
+            usedIds.push(notUsedToday.recipe.id);
+            return notUsedToday.recipe;
+        }
+        // fallback สุดท้าย
+        const fallback = recipes.find((r) => r.mealType === type)!;
+        usedIds.push(fallback.id);
+        return fallback;
     };
 
-    const breakfast = findBestMeal('เช้า');
-    const lunch = findBestMeal('กลางวัน');
-    const dinner = findBestMeal('เย็น');
-    const snack = findBestMeal('ว่าง');
+    const meals: { type: 'เช้า' | 'กลางวัน' | 'เย็น' | 'ว่าง'; recipe: Recipe }[] = [];
 
-    // สร้างแผนมื้ออาหาร (2-3 มื้อหลัก + 1 ว่าง)
-    const meals = [
-        { type: 'เช้า' as const, recipe: breakfast },
-        { type: 'กลางวัน' as const, recipe: lunch },
-        { type: 'เย็น' as const, recipe: dinner },
-        { type: 'ว่าง' as const, recipe: snack },
-    ];
+    if (mealsPerDay >= 2) {
+        meals.push({ type: 'เช้า', recipe: findBestMeal('เช้า') });
+        meals.push({ type: 'กลางวัน', recipe: findBestMeal('กลางวัน') });
+    }
+    if (mealsPerDay >= 3) {
+        meals.push({ type: 'เย็น', recipe: findBestMeal('เย็น') });
+    }
+    // ว่างเสมอ
+    meals.push({ type: 'ว่าง', recipe: findBestMeal('ว่าง') });
 
     const totalCalories = meals.reduce((sum, m) => sum + m.recipe.calories, 0);
     const totalProtein = meals.reduce((sum, m) => sum + m.recipe.protein, 0);
@@ -219,6 +245,7 @@ export function generateDailyMealPlan(
     const totalFat = meals.reduce((sum, m) => sum + m.recipe.fat, 0);
 
     return {
+        dayLabel,
         meals,
         totalCalories,
         totalProtein,
@@ -226,4 +253,80 @@ export function generateDailyMealPlan(
         totalFat,
     };
 }
+
+const DAY_LABELS = ['วันจันทร์', 'วันอังคาร', 'วันพุธ', 'วันพฤหัสบดี', 'วันศุกร์', 'วันเสาร์', 'วันอาทิตย์'];
+
+/**
+ * สร้างแผนอาหารรายสัปดาห์ (7 วัน)
+ * ใช้ rotation เพื่อไม่ให้เมนูซ้ำวันติดกัน
+ */
+export function generateWeeklyMealPlan(
+    recommendedIngredients: Ingredient[],
+    bmrResult: BMRResult,
+    weekNumber: number = 1,
+    mealsPerDay: 2 | 3 = 3
+): WeeklyMealPlan {
+    const days: DailyMealPlan[] = [];
+    let prevDayRecipeIds: string[] = [];
+
+    for (let d = 0; d < 7; d++) {
+        const dayPlan = generateDailyMealPlan(
+            recommendedIngredients,
+            bmrResult,
+            DAY_LABELS[d],
+            mealsPerDay,
+            prevDayRecipeIds
+        );
+        days.push(dayPlan);
+        // เก็บ recipe IDs ของวันนี้เพื่อใช้ exclude ในวันถัดไป
+        prevDayRecipeIds = dayPlan.meals.map((m) => m.recipe.id);
+    }
+
+    const totalProtein = days.reduce((sum, d) => sum + d.totalProtein, 0);
+    const totalCarbs = days.reduce((sum, d) => sum + d.totalCarbs, 0);
+    const totalFat = days.reduce((sum, d) => sum + d.totalFat, 0);
+    const avgCaloriesPerDay = Math.round(days.reduce((sum, d) => sum + d.totalCalories, 0) / 7);
+
+    return {
+        weekNumber,
+        days,
+        avgCaloriesPerDay,
+        totalProtein,
+        totalCarbs,
+        totalFat,
+    };
+}
+
+/**
+ * สร้างแผนอาหารตาม Subscription tier
+ * weekly → 1 สัปดาห์, 3 มื้อ + ว่าง
+ * monthly → 4 สัปดาห์, 3 มื้อ + ว่าง
+ */
+export function generateMealPlanSubscription(
+    element: ThaiElement,
+    goals: HealthGoal[],
+    tier: SubscriptionTier,
+    weight: number,
+    height: number,
+    age: number,
+    gender: 'ชาย' | 'หญิง' | 'อื่นๆ'
+): MealPlanSubscription {
+    const recommended = getRecommendedIngredients(element, goals);
+    const bmr = calculateBMR(weight, height, age, gender, goals);
+    const mealsPerDay: 2 | 3 = 3;
+    const weekCount = tier === 'monthly' ? 4 : 1;
+
+    const weeks: WeeklyMealPlan[] = [];
+    for (let w = 0; w < weekCount; w++) {
+        weeks.push(generateWeeklyMealPlan(recommended, bmr, w + 1, mealsPerDay));
+    }
+
+    return {
+        tier,
+        mealsPerDay,
+        weeks,
+        startDate: new Date().toISOString().split('T')[0],
+    };
+}
+
 

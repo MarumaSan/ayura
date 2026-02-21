@@ -28,7 +28,7 @@ export default function CheckoutPage() {
 
     const deliveryFee = 50;
     const discount = plan === 'monthly' ? 0.1 : 0;
-    const subtotal = weeklyBox?.totalPrice || 0;
+    const subtotal = 499; // Fixed weekly price
     const planMultiplier = plan === 'monthly' ? 4 : 1;
     const totalBeforeDiscount = subtotal * planMultiplier + deliveryFee;
     const discountAmount = Math.round(totalBeforeDiscount * discount);
@@ -69,8 +69,8 @@ export default function CheckoutPage() {
                                 <button
                                     onClick={() => setPlan('weekly')}
                                     className={`p-5 rounded-xl border-2 text-center transition-all hover-lift ${plan === 'weekly'
-                                            ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/5'
-                                            : 'border-[var(--color-border)] bg-white'
+                                        ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/5'
+                                        : 'border-[var(--color-border)] bg-white'
                                         }`}
                                 >
                                     <div className="text-3xl mb-2">📦</div>
@@ -83,8 +83,8 @@ export default function CheckoutPage() {
                                 <button
                                     onClick={() => setPlan('monthly')}
                                     className={`p-5 rounded-xl border-2 text-center transition-all hover-lift relative ${plan === 'monthly'
-                                            ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/5'
-                                            : 'border-[var(--color-border)] bg-white'
+                                        ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/5'
+                                        : 'border-[var(--color-border)] bg-white'
                                         }`}
                                 >
                                     <div className="absolute -top-3 right-3 bg-[var(--color-accent-dark)] text-white text-xs px-3 py-1 rounded-full font-bold">

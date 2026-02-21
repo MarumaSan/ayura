@@ -7,6 +7,7 @@ const navLinks = [
     { href: '/', label: 'หน้าแรก' },
     { href: '/assessment', label: 'ประเมินสุขภาพ' },
     { href: '/dashboard', label: 'กล่องสุขภาพ' },
+    { href: '/meal-plan', label: 'แผนอาหาร' },
     { href: '/bio-age', label: 'แต้มสุขภาพ' },
     { href: '/admin', label: 'สำหรับชุมชน' },
 ];
