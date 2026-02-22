@@ -372,9 +372,7 @@ export default function MealPlanPage() {
                                                                 >
                                                                     <span className="text-lg">{ing.image}</span>
                                                                     <span className="text-xs font-medium">{ing.name} ({item.amountInGrams} กรัม)</span>
-                                                                    <span className="text-[10px] text-[var(--color-text-muted)]">
-                                                                        {ing.calories} kcal/{ing.servingSize}
-                                                                    </span>
+                                                                    {ing.calories} kcal/{ing.gramsPerUnit}g
                                                                 </div>
                                                             );
                                                         })}

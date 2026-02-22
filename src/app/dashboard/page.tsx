@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { generateWeeklyBox, calculateBMI, generateDailyMealPlan } from '@/lib/aiRecommendation';
 import { ingredients } from '@/lib/data/ingredients';
-import { ThaiElement, HealthGoal, WeeklyBox, BMRResult, DailyMealPlan } from '@/lib/types';
+import { boxSets } from '@/lib/data/boxSets';
+import { ThaiElement, HealthGoal, WeeklyBox, BMRResult, DailyMealPlan, ScaledBoxSet } from '@/lib/types';
 import { NutritionCalculator } from '@/lib/nutritionCalculator';
+import { BoxSetModel } from '@/lib/dataModels';
 
 export default function DashboardPage() {
     const [profile, setProfile] = useState<{
@@ -23,6 +25,20 @@ export default function DashboardPage() {
     const [mealPlan, setMealPlan] = useState<DailyMealPlan | null>(null);
     const [activeTab, setActiveTab] = useState<'box' | 'meals'>('meals');
     const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
+    const [selectedBoxSetId, setSelectedBoxSetId] = useState<string>(boxSets[0]?.id || '');
+    const [planDuration, setPlanDuration] = useState<'weekly' | 'monthly'>('weekly');
+
+    // คำนวณ scaled box sets ตาม TDEE ของผู้ใช้
+    const scaledBoxSets: ScaledBoxSet[] = useMemo(() => {
+        if (!bmrResult) return [];
+        return boxSets.map((set) => {
+            const model = new BoxSetModel(set);
+            return model.scaleForUser(bmrResult.tdee);
+        });
+    }, [bmrResult]);
+
+    const selectedScaledSet = scaledBoxSets.find(s => s.boxSet.id === selectedBoxSetId) || scaledBoxSets[0];
+    const durationMultiplier = planDuration === 'monthly' ? 4 : 1;
 
     useEffect(() => {
         const stored = localStorage.getItem('ayura-profile');
@@ -34,7 +50,7 @@ export default function DashboardPage() {
             const calculator = new NutritionCalculator(parsed.weight, parsed.height, parsed.age, parsed.gender, parsed.healthGoals);
             const bmr = calculator.getTargetNutrition();
             setBmrResult(bmr);
-            const plan = generateDailyMealPlan(box.items.map(item => item.ingredient), calculator);
+            const plan = generateDailyMealPlan(calculator);
             setMealPlan(plan);
         } else {
             const defaultProfile = {
@@ -52,7 +68,7 @@ export default function DashboardPage() {
             const calculator = new NutritionCalculator(defaultProfile.weight, defaultProfile.height, defaultProfile.age, defaultProfile.gender, defaultProfile.healthGoals);
             const bmr = calculator.getTargetNutrition();
             setBmrResult(bmr);
-            const plan = generateDailyMealPlan(box.items.map(item => item.ingredient), calculator);
+            const plan = generateDailyMealPlan(calculator);
             setMealPlan(plan);
         }
     }, []);
@@ -387,7 +403,7 @@ export default function DashboardPage() {
                                                                         <span className="text-lg">{ing.image}</span>
                                                                         <span className="text-xs font-medium">{ing.name} ({item.amountInGrams} กรัม)</span>
                                                                         <span className="text-xs text-[var(--color-text-muted)]">
-                                                                            {ing.calories} kcal/{ing.servingSize}
+                                                                            {ing.calories} kcal/{ing.gramsPerUnit}g
                                                                         </span>
                                                                     </div>
                                                                 );
@@ -421,65 +437,125 @@ export default function DashboardPage() {
                             </div>
                         )}
 
-                        {/* Tab Content: Ingredient Box */}
-                        {activeTab === 'box' && (
+                        {/* Tab Content: Box Set Picker */}
+                        {activeTab === 'box' && selectedScaledSet && (
                             <div className="space-y-4 animate-fade-in">
+                                {/* Duration Toggle */}
+                                <div className="flex gap-2 bg-white rounded-xl p-1.5 shadow-sm">
+                                    <button
+                                        onClick={() => setPlanDuration('weekly')}
+                                        className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${planDuration === 'weekly'
+                                            ? 'bg-[var(--color-secondary)] text-white shadow-md'
+                                            : 'text-[var(--color-text-light)] hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        📅 รายสัปดาห์ (1 สัปดาห์)
+                                    </button>
+                                    <button
+                                        onClick={() => setPlanDuration('monthly')}
+                                        className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${planDuration === 'monthly'
+                                            ? 'bg-[var(--color-secondary)] text-white shadow-md'
+                                            : 'text-[var(--color-text-light)] hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        📦 รายเดือน (4 สัปดาห์)
+                                    </button>
+                                </div>
+
+                                {/* Box Set Selection Cards */}
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    {scaledBoxSets.map((scaled) => (
+                                        <button
+                                            key={scaled.boxSet.id}
+                                            onClick={() => setSelectedBoxSetId(scaled.boxSet.id)}
+                                            className={`p-4 rounded-xl text-left transition-all border-2 ${selectedBoxSetId === scaled.boxSet.id
+                                                ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/5 shadow-md'
+                                                : 'border-transparent bg-white hover:border-gray-200 hover:shadow-sm'
+                                                }`}
+                                        >
+                                            <div className="text-2xl mb-2">{scaled.boxSet.image}</div>
+                                            <h4 className="font-bold text-sm mb-1">{scaled.boxSet.name}</h4>
+                                            <p className="text-xs text-[var(--color-text-muted)] line-clamp-2 mb-2">{scaled.boxSet.description}</p>
+                                            <div className="text-lg font-bold text-[var(--color-primary)]">
+                                                ฿{Math.round(scaled.totalPrice * durationMultiplier)}
+                                                <span className="text-xs font-normal text-[var(--color-text-muted)] ml-1">
+                                                    /{planDuration === 'monthly' ? 'เดือน' : 'สัปดาห์'}
+                                                </span>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Selected Set Details */}
                                 <div className="glass-card p-6">
-                                    <div className="flex items-center justify-between mb-6">
+                                    <div className="flex items-center justify-between mb-4">
                                         <div>
                                             <h3 className="text-xl font-bold text-[var(--color-primary-dark)]">
-                                                📦 กล่อง Ayura สัปดาห์ที่ {weeklyBox.weekNumber}
+                                                {selectedScaledSet.boxSet.image} {selectedScaledSet.boxSet.name}
                                             </h3>
                                             <p className="text-sm text-[var(--color-text-light)]">
-                                                AI เลือกวัตถุดิบ {weeklyBox.items.map(item => item.ingredient).length} ชิ้นสำหรับคุณ
+                                                ปรับตาม TDEE ของคุณ • ตัวคูณ ×{selectedScaledSet.multiplier}
                                             </p>
                                         </div>
                                         <div className="text-right">
                                             <div className="text-2xl font-bold text-[var(--color-primary)]">
-                                                ฿{weeklyBox.totalPrice}
+                                                ฿{Math.round(selectedScaledSet.totalPrice * durationMultiplier)}
                                             </div>
-                                            <div className="text-xs text-[var(--color-text-muted)]">ต่อสัปดาห์</div>
+                                            <div className="text-xs text-[var(--color-text-muted)]">
+                                                {planDuration === 'monthly' ? '4 สัปดาห์' : 'ต่อสัปดาห์'}
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {weeklyBox.items.map((item, i) => {
-                                            const ingredient = item.ingredient;
+                                    {/* Nutrition Summary */}
+                                    <div className="grid grid-cols-4 gap-2 mb-4">
+                                        <div className="p-2 bg-orange-50 rounded-lg text-center">
+                                            <div className="text-sm font-bold text-orange-600">{Math.round(selectedScaledSet.totalCalories)}</div>
+                                            <div className="text-[10px] text-orange-400">kcal</div>
+                                        </div>
+                                        <div className="p-2 bg-red-50 rounded-lg text-center">
+                                            <div className="text-sm font-bold text-red-600">{selectedScaledSet.totalProtein}g</div>
+                                            <div className="text-[10px] text-red-400">โปรตีน</div>
+                                        </div>
+                                        <div className="p-2 bg-yellow-50 rounded-lg text-center">
+                                            <div className="text-sm font-bold text-amber-600">{selectedScaledSet.totalCarbs}g</div>
+                                            <div className="text-[10px] text-amber-400">คาร์บ</div>
+                                        </div>
+                                        <div className="p-2 bg-green-50 rounded-lg text-center">
+                                            <div className="text-sm font-bold text-green-600">{selectedScaledSet.totalFat}g</div>
+                                            <div className="text-[10px] text-green-400">ไขมัน</div>
+                                        </div>
+                                    </div>
+
+                                    {/* Ingredient List */}
+                                    <div className="space-y-3">
+                                        {selectedScaledSet.scaledItems.map((item, i) => {
+                                            const ing = ingredients.find(ig => ig.id === item.ingredientId);
                                             return (
                                                 <div
-                                                    key={ingredient.id}
-                                                    className="flex items-start gap-4 p-4 bg-[var(--color-bg)] rounded-xl hover-lift transition-all group"
-                                                    style={{ animationDelay: `${i * 100}ms` }}
+                                                    key={item.ingredientId}
+                                                    className="flex items-center gap-4 p-3 bg-[var(--color-bg)] rounded-xl hover:shadow-sm transition-all"
+                                                    style={{ animationDelay: `${i * 50}ms` }}
                                                 >
-                                                    <div className="w-14 h-14 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center text-3xl flex-shrink-0 group-hover:scale-110 transition-transform">
-                                                        {ingredient.image}
+                                                    <div className="w-12 h-12 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center text-2xl flex-shrink-0">
+                                                        {ing?.image || '🥬'}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2">
-                                                            <h4 className="font-bold text-sm">{ingredient.name}</h4>
-                                                            <span className="text-xs px-2 py-0.5 bg-[var(--color-primary)]/20 text-[var(--color-primary)] rounded-full font-semibold">
-                                                                {item.amountInGrams} กรัม
+                                                            <h4 className="font-bold text-sm">{item.ingredientName}</h4>
+                                                            <span className="text-xs px-2 py-0.5 bg-[var(--color-primary)]/15 text-[var(--color-primary)] rounded-full font-semibold">
+                                                                {item.scaledGrams}g
                                                             </span>
-                                                            <span className="text-xs px-2 py-0.5 bg-[var(--color-secondary)]/20 text-[var(--color-secondary)] rounded-full">
-                                                                {ingredient.category}
-                                                            </span>
+                                                            {item.scaledGrams !== item.baseGrams && (
+                                                                <span className="text-[10px] text-[var(--color-text-muted)]">
+                                                                    (base: {item.baseGrams}g)
+                                                                </span>
+                                                            )}
                                                         </div>
-                                                        <p className="text-xs text-[var(--color-text-light)] mt-1 line-clamp-2">
-                                                            {ingredient.benefits}
-                                                        </p>
-                                                        <div className="flex items-center gap-3 mt-2 text-xs text-[var(--color-text-muted)]">
-                                                            <span>{ingredient.calories} kcal/{ingredient.servingSize}</span>
-                                                            <span>P:{ingredient.protein}g</span>
-                                                            <span>C:{ingredient.carbs}g</span>
-                                                            <span>F:{ingredient.fat}g</span>
-                                                        </div>
-                                                        <div className="flex items-center justify-between mt-2">
-                                                            <span className="text-xs text-[var(--color-text-muted)]">
-                                                                📍 {ingredient.community}
-                                                            </span>
-                                                            <span className="text-sm font-bold text-[var(--color-primary)]">
-                                                                ฿{ingredient.pricePerUnit * item.quantity}
-                                                            </span>
+                                                    </div>
+                                                    <div className="text-right flex-shrink-0">
+                                                        <div className="text-sm font-bold text-[var(--color-primary)]">
+                                                            ฿{Math.round(item.scaledPrice * durationMultiplier)}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -488,31 +564,14 @@ export default function DashboardPage() {
                                     </div>
                                 </div>
 
-                                {/* Match Score */}
-                                <div className="glass-card p-6">
-                                    <h4 className="font-bold mb-3 flex items-center gap-2">
-                                        🤖 AI Match Score
-                                    </h4>
-                                    <div className="flex items-center gap-4">
-                                        <div className="relative w-20 h-20">
-                                            <svg className="w-20 h-20 transform -rotate-90" viewBox="0 0 80 80">
-                                                <circle cx="40" cy="40" r="35" stroke="#e5e7eb" strokeWidth="6" fill="none" />
-                                                <circle
-                                                    cx="40" cy="40" r="35"
-                                                    stroke="var(--color-primary)"
-                                                    strokeWidth="6" fill="none" strokeLinecap="round"
-                                                    strokeDasharray={`${weeklyBox.matchScore * 2.2} 220`}
-                                                />
-                                            </svg>
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                <span className="text-lg font-bold text-[var(--color-primary)]">
-                                                    {weeklyBox.matchScore}%
-                                                </span>
-                                            </div>
-                                        </div>
+                                {/* TDEE Info */}
+                                <div className="glass-card p-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-lg">⚡</div>
                                         <div>
-                                            <p className="text-sm text-[var(--color-text-light)]">
-                                                ความเหมาะสมกับ<br />ธาตุและเป้าหมายของคุณ
+                                            <p className="text-sm font-medium">TDEE ของคุณ: <span className="text-blue-600 font-bold">{bmrResult?.tdee.toLocaleString()} kcal/วัน</span></p>
+                                            <p className="text-xs text-[var(--color-text-muted)]">
+                                                ระบบคูณวัตถุดิบ ×{selectedScaledSet.multiplier} ให้สารอาหารพอดี
                                             </p>
                                         </div>
                                     </div>

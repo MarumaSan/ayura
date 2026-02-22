@@ -39,12 +39,12 @@ export interface Ingredient {
     pricePerUnit: number;
     unit: string;
     inStock: number;
-    // Nutrition per serving
-    calories: number; // kcal per serving
-    protein: number; // grams
-    carbs: number; // grams
-    fat: number; // grams
-    servingSize: string; // e.g. "100g", "1 ชิ้น"
+    // Nutrition per unit
+    calories: number; // kcal per unit
+    protein: number; // grams per unit
+    carbs: number; // grams per unit
+    fat: number; // grams per unit
+    gramsPerUnit: number; // Nutrition base amount and pricing base (e.g. 100g)
 }
 
 // ชุมชนผู้ผลิต
@@ -59,7 +59,7 @@ export interface Community {
 export interface BoxItem {
     ingredient: Ingredient;
     quantity: number; // e.g., 1 (pack/bag)
-    amountInGrams: number; // For explicit absolute calculation overrides
+    amountInGrams?: number; // For explicit absolute calculation overrides
 }
 
 // กล่องสุขภาพรายสัปดาห์
@@ -69,6 +69,44 @@ export interface WeeklyBox {
     items: BoxItem[];
     totalPrice: number;
     matchScore: number; // 0-100
+}
+
+// ========================================
+// Box Set System (Admin-defined)
+// ========================================
+
+// วัตถุดิบในเซ็ต (base ก่อนคูณ TDEE)
+export interface BoxSetItem {
+    ingredientId: string;
+    amountInGrams: number; // Base amount included in this specific box set
+}
+
+// เซ็ตกล่องที่ Admin กำหนดเอง
+export interface BoxSet {
+    id: string;
+    name: string;           // e.g. "เซ็ตลดน้ำหนัก"
+    description: string;
+    image: string;
+    items: BoxSetItem[];
+}
+
+// เซ็ตที่ถูก scale ตาม TDEE แล้ว (สำหรับผู้ใช้รายคน)
+export interface ScaledBoxSet {
+    boxSet: BoxSet;
+    multiplier: number;     // TDEE ÷ base calories
+    scaledItems: {
+        ingredientId: string;
+        ingredientName: string;
+        baseGrams: number;
+        scaledGrams: number;    // base × multiplier
+        basePrice: number;
+        scaledPrice: number;    // base × multiplier
+    }[];
+    totalPrice: number;         // ราคารวมหลัง scale (ต่อสัปดาห์)
+    totalCalories: number;
+    totalProtein: number;
+    totalCarbs: number;
+    totalFat: number;
 }
 
 // Subscription tier

@@ -134,80 +134,78 @@ export function calculateBioAge(realAge: number, streak: number, goalsCount: num
  * Removed calculateBMR - Use NutritionCalculator instead.
  */
 /**
- * สร้างแผนอาหารรายวัน (2-3 มื้อ + ว่าง)
- * จับคู่สูตรอาหารจากวัตถุดิบที่แนะนำ
- * @param recommendedIngredients - วัตถุดิบที่แนะนำ
- * @param calculator - Instance ของ NutritionCalculator
- * @param dayLabel - ชื่อวัน เช่น "วันจันทร์"
- * @param mealsPerDay - จำนวนมื้อหลัก (2 หรือ 3)
- * @param excludeRecipeIds - recipe IDs ที่ไม่ต้องการให้ซ้ำ
+ * สร้างแผนอาหารรายวัน (3 มื้อ + ว่าง)
+ * Algorithm: เลือกเมนูที่แคลเข้าใกล้ target ÷ meals_left มากที่สุด
+ * ห้ามซ้ำกับ excludeRecipeIds (เมนูที่ใช้ไปแล้วในสัปดาห์)
  */
 export function generateDailyMealPlan(
-    recommendedIngredients: Ingredient[],
     calculator: NutritionCalculator,
     dayLabel: string = 'วันนี้',
     mealsPerDay: 2 | 3 = 3,
     excludeRecipeIds: string[] = []
 ): DailyMealPlan {
-    const ingredientIds = recommendedIngredients.map((i) => i.id);
+    const target = calculator.getTargetNutrition();
+    const targetCal = target.targetCalories;
 
-    // หาสูตรอาหารที่ใช้วัตถุดิบจากกล่อง
-    const matchingRecipes = recipes.map((recipeData) => {
-        const recipe = new RecipeModel(recipeData); // Upgrade to OOP Model
-        const matchCount = recipe.items.filter((item) => ingredientIds.includes(item.ingredientId)).length;
-        const matchRatio = recipe.items.length > 0 ? matchCount / recipe.items.length : 0;
-        return { recipe: recipe as unknown as Recipe, matchCount, matchRatio };
-    }).filter((r) => r.matchCount > 0)
-        .sort((a, b) => b.matchRatio - a.matchRatio || b.matchCount - a.matchCount);
+    // สร้าง RecipeModel objects ทั้งหมด
+    const allRecipeModels = recipes.map((r) => new RecipeModel(r));
 
-    // เลือก meal โดยพยายามหลีกเลี่ยง recipe ที่ซ้ำจากวันก่อน
-    const usedIds: string[] = [];
-    const findBestMeal = (type: string) => {
-        // ลองหา recipe ที่ไม่ซ้ำกับ excludeRecipeIds ก่อน
-        const nonExcluded = matchingRecipes.find(
-            (r) => r.recipe.mealType === type && !excludeRecipeIds.includes(r.recipe.id) && !usedIds.includes(r.recipe.id)
-        );
-        if (nonExcluded) {
-            usedIds.push(nonExcluded.recipe.id);
-            return nonExcluded.recipe;
-        }
-        // fallback: หา recipe ที่ยังไม่ใช้ในวันนี้
-        const notUsedToday = matchingRecipes.find(
-            (r) => r.recipe.mealType === type && !usedIds.includes(r.recipe.id)
-        );
-        if (notUsedToday) {
-            usedIds.push(notUsedToday.recipe.id);
-            return notUsedToday.recipe;
-        }
-        // fallback สุดท้าย
-        const fallbackData = recipes.find((r) => r.mealType === type)!;
-        const fallback = new RecipeModel(fallbackData) as unknown as Recipe;
-        usedIds.push(fallback.id);
-        return fallback;
-    };
+    const mealTypes: ('เช้า' | 'กลางวัน' | 'เย็น' | 'ว่าง')[] =
+        mealsPerDay >= 3
+            ? ['เช้า', 'กลางวัน', 'เย็น', 'ว่าง']
+            : ['เช้า', 'กลางวัน', 'ว่าง'];
 
     const meals: { type: 'เช้า' | 'กลางวัน' | 'เย็น' | 'ว่าง'; recipe: Recipe }[] = [];
+    const usedIdsToday: string[] = [];
+    let consumedCal = 0;
 
-    if (mealsPerDay >= 2) {
-        meals.push({ type: 'เช้า', recipe: findBestMeal('เช้า') });
-        meals.push({ type: 'กลางวัน', recipe: findBestMeal('กลางวัน') });
-    }
-    if (mealsPerDay >= 3) {
-        meals.push({ type: 'เย็น', recipe: findBestMeal('เย็น') });
-    }
-    // ว่างเสมอ
-    meals.push({ type: 'ว่าง', recipe: findBestMeal('ว่าง') });
+    for (let mi = 0; mi < mealTypes.length; mi++) {
+        const mealType = mealTypes[mi];
+        const mealsLeft = mealTypes.length - mi;
+        const remainingCal = targetCal - consumedCal;
+        const idealCalForThisMeal = remainingCal / mealsLeft;
 
-    // Delegate scaling to NutritionCalculator (OOP)
-    const optimized = calculator.optimizeDailyMeals(meals);
+        // หาเมนูที่ตรง mealType + ไม่ซ้ำในสัปดาห์ + ไม่ซ้ำวันนี้
+        let candidates = allRecipeModels.filter(
+            (r) => r.mealType === mealType
+                && !excludeRecipeIds.includes(r.id)
+                && !usedIdsToday.includes(r.id)
+        );
+
+        // fallback: ถ้าหมด → อนุญาตซ้ำข้ามวัน (แต่ไม่ซ้ำในวันเดียวกัน)
+        if (candidates.length === 0) {
+            candidates = allRecipeModels.filter(
+                (r) => r.mealType === mealType && !usedIdsToday.includes(r.id)
+            );
+        }
+
+        // fallback สุดท้าย: ใช้อะไรก็ได้ที่ตรง mealType
+        if (candidates.length === 0) {
+            candidates = allRecipeModels.filter((r) => r.mealType === mealType);
+        }
+
+        // เลือกเมนูที่ calories ใกล้เคียง idealCalForThisMeal ที่สุด
+        const sorted = [...candidates].sort(
+            (a, b) => Math.abs(a.calories - idealCalForThisMeal) - Math.abs(b.calories - idealCalForThisMeal)
+        );
+
+        const chosen = sorted[0];
+        usedIdsToday.push(chosen.id);
+        consumedCal += chosen.calories;
+
+        meals.push({
+            type: mealType,
+            recipe: chosen as unknown as Recipe,
+        });
+    }
 
     return {
         dayLabel,
-        meals: optimized.meals,
-        totalCalories: optimized.totalCalories,
-        totalProtein: optimized.totalProtein,
-        totalCarbs: optimized.totalCarbs,
-        totalFat: optimized.totalFat,
+        meals,
+        totalCalories: Math.round(consumedCal * 10) / 10,
+        totalProtein: Math.round(meals.reduce((s, m) => s + (m.recipe.protein || 0), 0) * 10) / 10,
+        totalCarbs: Math.round(meals.reduce((s, m) => s + (m.recipe.carbs || 0), 0) * 10) / 10,
+        totalFat: Math.round(meals.reduce((s, m) => s + (m.recipe.fat || 0), 0) * 10) / 10,
     };
 }
 
@@ -215,28 +213,32 @@ const DAY_LABELS = ['วันจันทร์', 'วันอังคาร'
 
 /**
  * สร้างแผนอาหารรายสัปดาห์ (7 วัน)
- * ใช้ rotation เพื่อไม่ให้เมนูซ้ำวันติดกัน
+ * เมนูไม่ซ้ำกันภายในสัปดาห์เดียว (accumulated exclude list)
+ * 1 เดือน = 4 สัปดาห์ (exclude list reset ทุกสัปดาห์)
  */
 export function generateWeeklyMealPlan(
-    recommendedIngredients: Ingredient[],
     calculator: NutritionCalculator,
     weekNumber: number = 1,
     mealsPerDay: 2 | 3 = 3
 ): WeeklyMealPlan {
     const days: DailyMealPlan[] = [];
-    let prevDayRecipeIds: string[] = [];
+    const weekExcludeIds: string[] = []; // สะสมทั้งสัปดาห์
 
     for (let d = 0; d < 7; d++) {
         const dayPlan = generateDailyMealPlan(
-            recommendedIngredients,
             calculator,
             DAY_LABELS[d],
             mealsPerDay,
-            prevDayRecipeIds
+            [...weekExcludeIds] // ส่ง copy เข้าไป
         );
         days.push(dayPlan);
-        // เก็บ recipe IDs ของวันนี้เพื่อใช้ exclude ในวันถัดไป
-        prevDayRecipeIds = dayPlan.meals.map((m) => m.recipe.id);
+
+        // สะสม recipe IDs ที่ใช้ไปแล้วในสัปดาห์นี้
+        dayPlan.meals.forEach((m) => {
+            if (!weekExcludeIds.includes(m.recipe.id)) {
+                weekExcludeIds.push(m.recipe.id);
+            }
+        });
     }
 
     const totalProtein = Math.round(days.reduce((sum, d) => sum + d.totalProtein, 0) * 10) / 10;
@@ -267,14 +269,13 @@ export function generateMealPlanSubscription(
     age: number,
     gender: 'ชาย' | 'หญิง' | 'อื่นๆ'
 ): MealPlanSubscription {
-    const recommended = getRecommendedIngredients(goals);
     const calculator = new NutritionCalculator(weight, height, age, gender, goals);
     const mealsPerDay: 2 | 3 = 3;
     const weekCount = tier === 'monthly' ? 4 : 1;
 
     const weeks: WeeklyMealPlan[] = [];
     for (let w = 0; w < weekCount; w++) {
-        weeks.push(generateWeeklyMealPlan(recommended, calculator, w + 1, mealsPerDay));
+        weeks.push(generateWeeklyMealPlan(calculator, w + 1, mealsPerDay));
     }
 
     return {

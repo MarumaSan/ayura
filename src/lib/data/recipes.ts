@@ -3,13 +3,22 @@ import { RecipeData } from '../types';
 // ========================================
 // สูตรอาหาร (Recipes)
 // ========================================
+// วิธีแก้ไข: ปรับ amountInGrams ในแต่ละ item ตามสูตรจริง
+// ระบบจะคำนวณ calories/protein/carbs/fat ให้อัตโนมัติ
+// จากข้อมูล ingredients.ts × (amountInGrams ÷ servingSize)
+// ========================================
+
 export const recipes: RecipeData[] = [
     {
         id: 'r-01',
         name: 'ข้าวกล้องผัดอกไก่ผักเชียงดา',
         description: 'ข้าวกล้องหอมมะลิผัดกับอกไก่ออร์แกนิกและผักเชียงดา เมนูลดน้ำหนักแคลอรี่ต่ำ',
         image: '🍛',
-        items: [{ ingredientId: 'i9', amountInGrams: 1 }, { ingredientId: 'i6', amountInGrams: 1 }, { ingredientId: 'i1', amountInGrams: 1 }],
+        items: [
+            { ingredientId: 'i9', amountInGrams: 150 },  // ข้าวกล้อง 150g
+            { ingredientId: 'i6', amountInGrams: 120 },  // อกไก่ 120g
+            { ingredientId: 'i1', amountInGrams: 80 },   // ผักเชียงดา 80g
+        ],
         cookTime: '20 นาที',
         mealType: 'กลางวัน',
         instructions: [
@@ -24,7 +33,10 @@ export const recipes: RecipeData[] = [
         name: 'น้ำขิงขมิ้นอุ่นๆ',
         description: 'เครื่องดื่มสมุนไพรอุ่นๆ ช่วยกระตุ้นระบบย่อยอาหาร ดีต่อภูมิคุ้มกัน',
         image: '🍵',
-        items: [{ ingredientId: 'i5', amountInGrams: 1 }, { ingredientId: 'i2', amountInGrams: 1 }],
+        items: [
+            { ingredientId: 'i5', amountInGrams: 30 },   // ขิง 30g
+            { ingredientId: 'i2', amountInGrams: 10 },   // ขมิ้น 10g
+        ],
         cookTime: '10 นาที',
         mealType: 'เช้า',
         instructions: [
@@ -39,7 +51,11 @@ export const recipes: RecipeData[] = [
         name: 'สลัดคะน้าอกไก่กระเจี๊ยบ',
         description: 'สลัดผักออร์แกนิกกับอกไก่ย่างและน้ำสลัดกระเจี๊ยบ',
         image: '🥗',
-        items: [{ ingredientId: 'i11', amountInGrams: 1 }, { ingredientId: 'i6', amountInGrams: 1 }, { ingredientId: 'i7', amountInGrams: 1 }],
+        items: [
+            { ingredientId: 'i11', amountInGrams: 120 }, // คะน้า 120g
+            { ingredientId: 'i6', amountInGrams: 150 },  // อกไก่ 150g
+            { ingredientId: 'i7', amountInGrams: 30 },   // กระเจี๊ยบ 30g
+        ],
         cookTime: '15 นาที',
         mealType: 'กลางวัน',
         instructions: [
@@ -54,7 +70,10 @@ export const recipes: RecipeData[] = [
         name: 'โจ๊กข้าวกล้องขิง',
         description: 'โจ๊กข้าวกล้องร้อนๆ ใส่ขิงสดหอมกรุ่น อาหารเช้าอบอุ่น ย่อยง่าย',
         image: '🥣',
-        items: [{ ingredientId: 'i9', amountInGrams: 1 }, { ingredientId: 'i5', amountInGrams: 1 }],
+        items: [
+            { ingredientId: 'i9', amountInGrams: 100 },  // ข้าวกล้อง 100g
+            { ingredientId: 'i5', amountInGrams: 20 },   // ขิง 20g
+        ],
         cookTime: '25 นาที',
         mealType: 'เช้า',
         instructions: [
@@ -69,7 +88,9 @@ export const recipes: RecipeData[] = [
         name: 'ผัดผักหวานน้ำมันหอย',
         description: 'ผักหวานป่าผัดน้ำมันหอย เมนูง่ายๆ แคลอรี่ต่ำ วิตามินสูง',
         image: '🥬',
-        items: [{ ingredientId: 'i4', amountInGrams: 1 }],
+        items: [
+            { ingredientId: 'i4', amountInGrams: 200 },  // ผักหวาน 200g
+        ],
         cookTime: '8 นาที',
         mealType: 'เย็น',
         instructions: [
@@ -84,7 +105,10 @@ export const recipes: RecipeData[] = [
         name: 'ต้มตะไคร้ใบเตยเย็น',
         description: 'เครื่องดื่มสมุนไพรเย็นชื่นใจ ช่วยผ่อนคลายและนอนหลับดี',
         image: '🧊',
-        items: [{ ingredientId: 'i3', amountInGrams: 1 }, { ingredientId: 'i8', amountInGrams: 1 }],
+        items: [
+            { ingredientId: 'i3', amountInGrams: 50 },   // ตะไคร้ 50g
+            { ingredientId: 'i8', amountInGrams: 30 },   // ใบเตย 30g
+        ],
         cookTime: '15 นาที',
         mealType: 'ว่าง',
         instructions: [
@@ -99,7 +123,11 @@ export const recipes: RecipeData[] = [
         name: 'ข้าวกล้องหน้าอกไก่ย่างขมิ้น',
         description: 'อกไก่หมักขมิ้นย่างเสิร์ฟกับข้าวกล้อง ครบโปรตีน พลังงานดี',
         image: '🍱',
-        items: [{ ingredientId: 'i9', amountInGrams: 1 }, { ingredientId: 'i6', amountInGrams: 1 }, { ingredientId: 'i2', amountInGrams: 1 }],
+        items: [
+            { ingredientId: 'i9', amountInGrams: 180 },  // ข้าวกล้อง 180g
+            { ingredientId: 'i6', amountInGrams: 150 },  // อกไก่ 150g
+            { ingredientId: 'i2', amountInGrams: 10 },   // ขมิ้น 10g
+        ],
         cookTime: '30 นาที',
         mealType: 'เย็น',
         instructions: [
@@ -114,7 +142,10 @@ export const recipes: RecipeData[] = [
         name: 'สมูทตี้มะขามป้อมว่านหางจระเข้',
         description: 'สมูทตี้สุขภาพวิตามินซีสูง บำรุงผิว ชะลอวัย',
         image: '🥤',
-        items: [{ ingredientId: 'i10', amountInGrams: 1 }, { ingredientId: 'i12', amountInGrams: 1 }],
+        items: [
+            { ingredientId: 'i10', amountInGrams: 100 }, // มะขามป้อม 100g
+            { ingredientId: 'i12', amountInGrams: 80 },  // ว่านหางจระเข้ 80g
+        ],
         cookTime: '5 นาที',
         mealType: 'ว่าง',
         instructions: [
@@ -129,7 +160,10 @@ export const recipes: RecipeData[] = [
         name: 'แกงจืดผักเชียงดาคะน้า',
         description: 'แกงจืดใสๆ อุดมด้วยผักออร์แกนิก 2 ชนิด ย่อยง่าย ดีต่อสุขภาพ',
         image: '🍲',
-        items: [{ ingredientId: 'i1', amountInGrams: 1 }, { ingredientId: 'i11', amountInGrams: 1 }],
+        items: [
+            { ingredientId: 'i1', amountInGrams: 100 },  // ผักเชียงดา 100g
+            { ingredientId: 'i11', amountInGrams: 100 }, // คะน้า 100g
+        ],
         cookTime: '15 นาที',
         mealType: 'เย็น',
         instructions: [
@@ -144,7 +178,11 @@ export const recipes: RecipeData[] = [
         name: 'ผัดคะน้าขิงอกไก่',
         description: 'ผัดรวมมิตรโปรตีนสูง ขิงช่วยย่อย คะน้าเสริมธาตุเหล็ก',
         image: '🥘',
-        items: [{ ingredientId: 'i11', amountInGrams: 1 }, { ingredientId: 'i5', amountInGrams: 1 }, { ingredientId: 'i6', amountInGrams: 1 }],
+        items: [
+            { ingredientId: 'i11', amountInGrams: 120 }, // คะน้า 120g
+            { ingredientId: 'i5', amountInGrams: 20 },   // ขิง 20g
+            { ingredientId: 'i6', amountInGrams: 150 },  // อกไก่ 150g
+        ],
         cookTime: '12 นาที',
         mealType: 'กลางวัน',
         instructions: [
