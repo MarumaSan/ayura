@@ -2,8 +2,18 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { mockOrders } from '@/lib/data/orders';
-import { ingredients } from '@/lib/data/ingredients';
+const ingredients = [
+    { id: 'i1', name: 'อกไก่ออร์แกนิก', nameEn: 'Organic Chicken Breast', category: 'โปรตีน', image: '🍗', community: 'สหกรณ์การเกษตรดอยคำ', inStock: 150, unit: 'ชิ้น', pricePerUnit: 189 },
+    { id: 'i2', name: 'ผักเชียงดา', nameEn: 'Gymnema', category: 'ผัก', image: '🥬', community: 'ฟาร์มตัวอย่างหุบกะพง', inStock: 120, unit: 'กำ', pricePerUnit: 85 },
+    { id: 'i3', name: 'ขิงสด', nameEn: 'Ginger', category: 'สมุนไพร', image: '🫚', community: 'ศูนย์ศิลปาชีพบางไทร', inStock: 200, unit: 'กิโลกรัม', pricePerUnit: 55 },
+    { id: 'i4', name: 'ใบเตย', nameEn: 'Pandan', category: 'สมุนไพร', image: '🍃', community: 'กลุ่มวิสาหกิจชุมชนแม่กลอง', inStock: 180, unit: 'กำ', pricePerUnit: 35 },
+    { id: 'i5', name: 'ข้าวกล้อง', nameEn: 'Brown Rice', category: 'ธัญพืช', image: '🌾', community: 'ทุ่งกุลาร้องไห้', inStock: 300, unit: 'กก.', pricePerUnit: 145 },
+];
+const mockOrders = [
+    { id: 'ORD-001', customerName: 'คุณสมหญิง รักสุขภาพ', status: 'รอจัดส่ง', totalPrice: 890, plan: 'weekly', address: '123/45 ถ.สุขุมวิท', deliveryDate: '15/11/2023', box: { items: [{ ingredient: { id: 'i1', name: 'อกไก่', image: '🍗' } }, { ingredient: { id: 'i2', name: 'ผักเชียงดา', image: '🥬' } }] } },
+    { id: 'ORD-002', customerName: 'คุณสมชาย ใจดี', status: 'กำลังจัดเตรียม', totalPrice: 2400, plan: 'monthly', address: '99/9 ถ.พหลโยธิน', deliveryDate: '15/11/2023', box: { items: [{ ingredient: { id: 'i3', name: 'ขิง', image: '🫚' } }, { ingredient: { id: 'i5', name: 'ข้าวกล้อง', image: '🌾' } }] } },
+    { id: 'ORD-003', customerName: 'คุณมะลิ สวยเสมอ', status: 'จัดส่งแล้ว', totalPrice: 890, plan: 'weekly', address: '44/4 ถ.สีลม', deliveryDate: '14/11/2023', box: { items: [{ ingredient: { id: 'i1', name: 'อกไก่', image: '🍗' } }] } },
+];
 
 const statusFilters = ['ทั้งหมด', 'รอจัดส่ง', 'กำลังจัดเตรียม', 'จัดส่งแล้ว', 'สำเร็จ'];
 

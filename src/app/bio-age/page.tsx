@@ -2,12 +2,35 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { mockUser, bioAgeHistory } from '@/lib/data/users';
-import { rewards } from '@/lib/data/system';
-import { UserProfile } from '@/lib/types';
+const mockUser = {
+    id: "u1",
+    name: "คุณสมหญิง",
+    age: 35,
+    realAge: 35,
+    bioAge: 32,
+    gender: "หญิง",
+    weight: 60,
+    height: 165,
+    healthGoals: ["ลดน้ำหนัก", "ผิวพรรณสดใส"],
+    points: 1250,
+    streak: 4
+};
+
+const bioAgeHistory = [
+    { week: "สัปดาห์ 1", realAge: 35, bioAge: 35 },
+    { week: "สัปดาห์ 2", realAge: 35, bioAge: 34 },
+    { week: "สัปดาห์ 3", realAge: 35, bioAge: 33 },
+    { week: "สัปดาห์ 4", realAge: 35, bioAge: 32 }
+];
+
+const rewards = [
+    { id: "rd1", name: "ส่วนลด 100 บาท ค่าส่ง", description: "นำแต้มเพื่อเป็นส่วนลดค่าจัดส่งสำหรับกล่องสัปดาห์ถัดไป", pointsRequired: 500, image: "🚚" },
+    { id: "rd2", name: "ฟรี น้ำผลไม้สกัดเย็น", description: "เลือกน้ำผลไม้สกัดเย็นตามต้องการ 1 ขวด", pointsRequired: 1000, image: "🧃" },
+    { id: "rd3", name: "เซ็ตตรวจสุขภาพพื้นฐาน", description: "ชุดตรวจสุขภาพและปรึกษาแพทย์", pointsRequired: 5000, image: "🩺" }
+];
 
 export default function BioAgePage() {
-    const [user, setUser] = useState<UserProfile>(mockUser);
+    const [user, setUser] = useState<any>(mockUser);
     const [animatedBioAge, setAnimatedBioAge] = useState(user.realAge);
 
     useEffect(() => {
@@ -19,7 +42,6 @@ export default function BioAgePage() {
                 name: parsed.name || mockUser.name,
                 age: parsed.age || mockUser.age,
                 realAge: parsed.age || mockUser.realAge,
-                element: parsed.element || mockUser.element,
                 healthGoals: parsed.healthGoals || mockUser.healthGoals,
             });
         }
@@ -251,8 +273,8 @@ export default function BioAgePage() {
                             <Link href="/dashboard" className="btn-primary w-full justify-center !py-3 text-sm">
                                 ดูกล่องสุขภาพ 📦
                             </Link>
-                            <Link href="/assessment" className="btn-outline w-full justify-center !py-3 text-sm">
-                                ประเมินสุขภาพใหม่ 🔄
+                            <Link href="/login" className="btn-outline flex-1 sm:flex-none justify-center">
+                                ลงชื่อเข้าใช้บัญชีอื่น 🔄
                             </Link>
                         </div>
                     </div>

@@ -2,8 +2,14 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ingredients, categories } from '@/lib/data/ingredients';
-import { Ingredient } from '@/lib/types';
+const categories = ['ทั้งหมด', 'ผัก', 'สมุนไพร', 'ผลไม้', 'โปรตีน', 'ธัญพืช'];
+const ingredients = [
+    { id: 'i1', name: 'อกไก่ออร์แกนิก', nameEn: 'Organic Chicken Breast', category: 'โปรตีน', image: '🍗', community: 'สหกรณ์การเกษตรดอยคำ', inStock: 150, unit: 'ชิ้น', pricePerUnit: 189 },
+    { id: 'i2', name: 'ผักเชียงดา', nameEn: 'Gymnema', category: 'ผัก', image: '🥬', community: 'ฟาร์มตัวอย่างหุบกะพง', inStock: 120, unit: 'กำ', pricePerUnit: 85 },
+    { id: 'i3', name: 'ขิงสด', nameEn: 'Ginger', category: 'สมุนไพร', image: '🫚', community: 'ศูนย์ศิลปาชีพบางไทร', inStock: 200, unit: 'กิโลกรัม', pricePerUnit: 55 },
+    { id: 'i4', name: 'ใบเตย', nameEn: 'Pandan', category: 'สมุนไพร', image: '🍃', community: 'กลุ่มวิสาหกิจชุมชนแม่กลอง', inStock: 180, unit: 'กำ', pricePerUnit: 35 },
+    { id: 'i5', name: 'ข้าวกล้อง', nameEn: 'Brown Rice', category: 'ธัญพืช', image: '🌾', community: 'ทุ่งกุลาร้องไห้', inStock: 300, unit: 'กก.', pricePerUnit: 145 },
+];
 
 function getStockStatus(stock: number): { label: string; color: string; bg: string } {
     if (stock > 100) return { label: 'พร้อมส่ง', color: 'var(--color-success)', bg: 'rgba(16,185,129,0.1)' };

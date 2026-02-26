@@ -1,79 +1,62 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { generateWeeklyBox, calculateBMI, generateDailyMealPlan } from '@/lib/aiRecommendation';
-import { ingredients } from '@/lib/data/ingredients';
-import { boxSets } from '@/lib/data/boxSets';
-import { ThaiElement, HealthGoal, WeeklyBox, BMRResult, DailyMealPlan, ScaledBoxSet } from '@/lib/types';
-import { NutritionCalculator } from '@/lib/nutritionCalculator';
-import { BoxSetModel } from '@/lib/dataModels';
 
 export default function DashboardPage() {
-    const [profile, setProfile] = useState<{
-        name: string;
-        age: number;
-        gender: 'ชาย' | 'หญิง' | 'อื่นๆ';
-        weight: number;
-        height: number;
-        element: ThaiElement;
-        healthGoals: HealthGoal[];
-    } | null>(null);
-
-    const [weeklyBox, setWeeklyBox] = useState<WeeklyBox | null>(null);
-    const [bmrResult, setBmrResult] = useState<BMRResult | null>(null);
-    const [mealPlan, setMealPlan] = useState<DailyMealPlan | null>(null);
+    const [profile, setProfile] = useState<any>(null);
     const [activeTab, setActiveTab] = useState<'box' | 'meals'>('meals');
-    const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
-    const [selectedBoxSetId, setSelectedBoxSetId] = useState<string>(boxSets[0]?.id || '');
     const [planDuration, setPlanDuration] = useState<'weekly' | 'monthly'>('weekly');
-
-    // คำนวณ scaled box sets ตาม TDEE ของผู้ใช้
-    const scaledBoxSets: ScaledBoxSet[] = useMemo(() => {
-        if (!bmrResult) return [];
-        return boxSets.map((set) => {
-            const model = new BoxSetModel(set);
-            return model.scaleForUser(bmrResult.tdee);
-        });
-    }, [bmrResult]);
-
-    const selectedScaledSet = scaledBoxSets.find(s => s.boxSet.id === selectedBoxSetId) || scaledBoxSets[0];
-    const durationMultiplier = planDuration === 'monthly' ? 4 : 1;
+    const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
 
     useEffect(() => {
-        const stored = localStorage.getItem('ayura-profile');
-        if (stored) {
-            const parsed = JSON.parse(stored);
-            setProfile(parsed);
-            const box = generateWeeklyBox(parsed.healthGoals, 8);
-            setWeeklyBox(box);
-            const calculator = new NutritionCalculator(parsed.weight, parsed.height, parsed.age, parsed.gender, parsed.healthGoals);
-            const bmr = calculator.getTargetNutrition();
-            setBmrResult(bmr);
-            const plan = generateDailyMealPlan(calculator);
-            setMealPlan(plan);
-        } else {
-            const defaultProfile = {
-                name: 'ผู้ใช้ตัวอย่าง',
-                age: 30,
-                gender: 'ชาย' as const,
-                weight: 70,
-                height: 170,
-                element: 'ไฟ' as ThaiElement,
-                healthGoals: ['ลดน้ำหนัก', 'ลดความเครียด'] as HealthGoal[],
-            };
-            setProfile(defaultProfile);
-            const box = generateWeeklyBox(defaultProfile.healthGoals, 8);
-            setWeeklyBox(box);
-            const calculator = new NutritionCalculator(defaultProfile.weight, defaultProfile.height, defaultProfile.age, defaultProfile.gender, defaultProfile.healthGoals);
-            const bmr = calculator.getTargetNutrition();
-            setBmrResult(bmr);
-            const plan = generateDailyMealPlan(calculator);
-            setMealPlan(plan);
-        }
+        const loadRealProfile = async () => {
+            const stored = localStorage.getItem('ayuraProfile');
+            if (stored) {
+                const sessionData = JSON.parse(stored);
+
+                try {
+                    const res = await fetch(`/api/user/profile?userId=${sessionData.userId}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        setProfile(data.profile);
+                    } else {
+                        // Fallback
+                        setProfile({
+                            name: sessionData.name || 'ผู้ใช้',
+                            age: 30,
+                            gender: 'ไม่ระบุ',
+                            weight: 60,
+                            height: 165,
+                            healthGoals: ['รักษาสุขภาพ']
+                        });
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch profile", err);
+                    setProfile({
+                        name: sessionData.name || 'ผู้ใช้',
+                        age: 30,
+                        gender: 'ไม่ระบุ',
+                        weight: 60,
+                        height: 165,
+                        healthGoals: ['รักษาสุขภาพ']
+                    });
+                }
+            } else {
+                setProfile({
+                    name: 'ผู้ใช้ตัวอย่าง (ยังไม่เข้าระบบ)',
+                    age: 30,
+                    gender: 'ชาย',
+                    weight: 70,
+                    height: 170,
+                    healthGoals: ['ลดน้ำหนัก', 'เพิ่มภูมิคุ้มกัน'],
+                });
+            }
+        };
+        loadRealProfile();
     }, []);
 
-    if (!profile || !weeklyBox || !bmrResult || !mealPlan) {
+    if (!profile) {
         return (
             <div className="min-h-screen pt-24 flex items-center justify-center">
                 <div className="text-center">
@@ -84,7 +67,47 @@ export default function DashboardPage() {
         );
     }
 
-    const bmi = calculateBMI(profile.weight, profile.height);
+    const heightM = profile.height / 100;
+    const bmiValue = Math.round((profile.weight / (heightM * heightM)) * 10) / 10;
+    let bmiLabel = '';
+    if (bmiValue < 18.5) bmiLabel = 'น้ำหนักต่ำกว่าเกณฑ์';
+    else if (bmiValue < 23) bmiLabel = 'น้ำหนักปกติ';
+    else if (bmiValue < 25) bmiLabel = 'น้ำหนักเกิน';
+    else bmiLabel = 'โรคอ้วน';
+
+    const bmi = { bmi: bmiValue, label: bmiLabel };
+
+    // Static data placeholders
+    const bmrResult = { bmr: 1650, tdee: 2557, targetCalories: 2045, targetProtein: 153, targetCarbs: 230, targetFat: 56 };
+    const scaledBoxSets = [
+        {
+            boxSet: { id: 'set-1', name: 'เซ็ตลดน้ำหนัก', description: 'เซ็ตวัตถุดิบสำหรับคนที่ต้องการลดน้ำหนัก', image: '🥗' },
+            multiplier: 1.5,
+            totalPrice: 450,
+            totalCalories: 2100,
+            totalProtein: 130,
+            totalCarbs: 200,
+            totalFat: 50,
+            scaledItems: [
+                { ingredientId: 'i1', ingredientName: 'อกไก่ออร์แกนิก', scaledGrams: 300, baseGrams: 200, scaledPrice: 280, image: '🍗' },
+                { ingredientId: 'i2', ingredientName: 'ผักเชียงดา', scaledGrams: 200, baseGrams: 150, scaledPrice: 80, image: '🥬' }
+            ]
+        }
+    ];
+
+    const selectedScaledSet = scaledBoxSets[0];
+    const durationMultiplier = planDuration === 'monthly' ? 4 : 1;
+
+    const mealPlan = {
+        totalCalories: 1950,
+        totalProtein: 145,
+        totalCarbs: 210,
+        totalFat: 52,
+        meals: [
+            { type: 'เช้า', recipe: { id: 'r1', name: 'อกไก่ย่าง', description: 'อกไก่ย่างนุ่มๆ', calories: 450, protein: 40, carbs: 30, fat: 12, cookTime: '20 นาที', image: '🍗', items: [], instructions: [] } },
+            { type: 'กลางวัน', recipe: { id: 'r2', name: 'ข้าวแกงส้ม', description: 'แกงส้มผักรวม', calories: 600, protein: 35, carbs: 70, fat: 15, cookTime: '30 นาที', image: '🍲', items: [], instructions: [] } }
+        ]
+    };
 
     const mealTypeLabels: Record<string, { label: string; emoji: string; time: string }> = {
         'เช้า': { label: 'มื้อเช้า', emoji: '🌅', time: '07:00 - 08:30' },
@@ -93,7 +116,6 @@ export default function DashboardPage() {
         'ว่าง': { label: 'อาหารว่าง', emoji: '🍵', time: '15:00 - 16:00' },
     };
 
-    // Calorie percentage for macro bars
     const caloriePercent = Math.min(100, Math.round((mealPlan.totalCalories / bmrResult.targetCalories) * 100));
     const proteinPercent = Math.min(100, Math.round((mealPlan.totalProtein / bmrResult.targetProtein) * 100));
     const carbsPercent = Math.min(100, Math.round((mealPlan.totalCarbs / bmrResult.targetCarbs) * 100));
@@ -104,35 +126,19 @@ export default function DashboardPage() {
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Header */}
                 <div className="mb-8 animate-fade-in">
-                    <h1 className="text-3xl font-bold text-gradient mb-2">
-                        กล่องสุขภาพของคุณ
-                    </h1>
-                    <p className="text-[var(--color-text-light)]">
-                        สัปดาห์ที่ {weeklyBox.weekNumber} • AI จัดให้โดยเฉพาะ
-                    </p>
+                    <h1 className="text-3xl font-bold text-gradient mb-2">กล่องสุขภาพของคุณ</h1>
+                    <p className="text-[var(--color-text-light)]">ข้อมูลจำลองแบบ Static (ลบระบบหลังบ้านแล้ว)</p>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Left Column: Profile + BMR + Nutrition */}
                     <div className="lg:col-span-1 space-y-6">
                         {/* Profile Card */}
                         <div className="glass-card p-6 animate-fade-in">
-                            <div className="text-center">
-                                <div className="text-secondary opacity-80 mb-2">ธาตุของคุณ</div>
-                                <div className="flex items-center gap-3 justify-center">
-                                    <div
-                                        className="w-10 h-10 rounded-full flex items-center justify-center text-lg"
-                                        style={{ backgroundColor: 'currentColor' + '20' }}
-                                    >
-                                        👤
-                                    </div>
-                                    <span className="font-bold text-lg" style={{ color: 'currentColor' }}>
-                                        ธาตุ{profile.element}
-                                    </span>
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center p-3 bg-[var(--color-bg-section)] rounded-xl">
+                                    <span className="text-sm text-[var(--color-text-light)]">ชื่อ</span>
+                                    <span className="font-medium">{profile.name}</span>
                                 </div>
-                            </div>
-
-                            <div className="mt-6 space-y-3">
                                 <div className="flex justify-between items-center p-3 bg-[var(--color-bg-section)] rounded-xl">
                                     <span className="text-sm text-[var(--color-text-light)]">อายุ</span>
                                     <span className="font-medium">{profile.age} ปี</span>
@@ -163,7 +169,6 @@ export default function DashboardPage() {
                                 <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-xl p-4 border border-orange-100">
                                     <div className="flex justify-between items-center mb-1">
                                         <span className="text-xs text-[var(--color-text-muted)] uppercase tracking-wide">BMR</span>
-                                        <span className="text-xs text-[var(--color-text-muted)]">Basal Metabolic Rate</span>
                                     </div>
                                     <div className="text-3xl font-bold text-orange-600">
                                         {bmrResult.bmr.toLocaleString()}
@@ -174,7 +179,6 @@ export default function DashboardPage() {
                                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
                                     <div className="flex justify-between items-center mb-1">
                                         <span className="text-xs text-[var(--color-text-muted)] uppercase tracking-wide">TDEE</span>
-                                        <span className="text-xs text-[var(--color-text-muted)]">กิจกรรมปานกลาง</span>
                                     </div>
                                     <div className="text-3xl font-bold text-blue-600">
                                         {bmrResult.tdee.toLocaleString()}
@@ -185,9 +189,6 @@ export default function DashboardPage() {
                                 <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
                                     <div className="flex justify-between items-center mb-1">
                                         <span className="text-xs text-[var(--color-text-muted)] uppercase tracking-wide">เป้าหมายแคลอรี่</span>
-                                        {profile.healthGoals.includes('ลดน้ำหนัก') && (
-                                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">ลด 20%</span>
-                                        )}
                                     </div>
                                     <div className="text-3xl font-bold text-green-600">
                                         {bmrResult.targetCalories.toLocaleString()}
@@ -240,7 +241,7 @@ export default function DashboardPage() {
                                     </div>
                                     <div className="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
                                         <div
-                                            className={`h-full rounded-full transition-all duration-1000 ${caloriePercent > 100 ? 'bg-gradient-to-r from-red-400 to-red-600' : 'bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)]'}`}
+                                            className={`h-full rounded-full transition-all duration-1000 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)]`}
                                             style={{ width: `${Math.min(caloriePercent, 100)}%` }}
                                         ></div>
                                     </div>
@@ -248,23 +249,6 @@ export default function DashboardPage() {
                                         {caloriePercent}% ของเป้าหมาย
                                     </p>
                                 </div>
-                            </div>
-                        </div>
-
-                        {/* Goals */}
-                        <div className="glass-card p-6 animate-fade-in delay-300">
-                            <h4 className="font-bold mb-3 flex items-center gap-2">
-                                🎯 เป้าหมายสุขภาพ
-                            </h4>
-                            <div className="flex flex-wrap gap-2">
-                                {profile.healthGoals.map((goal) => (
-                                    <span
-                                        key={goal}
-                                        className="text-xs px-3 py-1.5 bg-[var(--color-primary)]/10 text-[var(--color-primary)] rounded-full font-medium"
-                                    >
-                                        {goal}
-                                    </span>
-                                ))}
                             </div>
                         </div>
                     </div>
@@ -322,9 +306,6 @@ export default function DashboardPage() {
                                 {mealPlan.meals.map((meal, i) => {
                                     const mealInfo = mealTypeLabels[meal.type];
                                     const isExpanded = expandedRecipe === meal.recipe.id;
-                                    const mealIngredients = meal.recipe.items.map(item => item.ingredientId)
-                                        .map((id) => ingredients.find((ing) => ing.id === id))
-                                        .filter(Boolean);
 
                                     return (
                                         <div
@@ -382,55 +363,6 @@ export default function DashboardPage() {
                                                     </span>
                                                 </div>
                                             </div>
-
-                                            {/* Expanded Details */}
-                                            {isExpanded && (
-                                                <div className="border-t border-gray-100 p-5 bg-gradient-to-b from-gray-50/50 to-white animate-fade-in">
-                                                    {/* Ingredients Used */}
-                                                    <div className="mb-4">
-                                                        <h5 className="text-sm font-bold text-[var(--color-primary-dark)] mb-2">
-                                                            🧅 วัตถุดิบที่ใช้
-                                                        </h5>
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {meal.recipe.items.map((item, idx) => {
-                                                                const ing = ingredients.find(i => i.id === item.ingredientId);
-                                                                if (!ing) return null;
-                                                                return (
-                                                                    <div
-                                                                        key={`${ing.id}-${idx}`}
-                                                                        className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full border border-gray-100 shadow-sm"
-                                                                    >
-                                                                        <span className="text-lg">{ing.image}</span>
-                                                                        <span className="text-xs font-medium">{ing.name} ({item.amountInGrams} กรัม)</span>
-                                                                        <span className="text-xs text-[var(--color-text-muted)]">
-                                                                            {ing.calories} kcal/{ing.gramsPerUnit}g
-                                                                        </span>
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Cooking Instructions */}
-                                                    <div>
-                                                        <h5 className="text-sm font-bold text-[var(--color-primary-dark)] mb-2">
-                                                            👨‍🍳 วิธีทำ
-                                                        </h5>
-                                                        <ol className="space-y-2">
-                                                            {meal.recipe.instructions.map((step, stepIdx) => (
-                                                                <li key={stepIdx} className="flex gap-3 items-start">
-                                                                    <span className="w-6 h-6 bg-[var(--color-primary)] text-white text-xs rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 font-bold">
-                                                                        {stepIdx + 1}
-                                                                    </span>
-                                                                    <span className="text-sm text-[var(--color-text-light)] leading-relaxed">
-                                                                        {step}
-                                                                    </span>
-                                                                </li>
-                                                            ))}
-                                                        </ol>
-                                                    </div>
-                                                </div>
-                                            )}
                                         </div>
                                     );
                                 })}
@@ -460,30 +392,6 @@ export default function DashboardPage() {
                                     >
                                         📦 รายเดือน (4 สัปดาห์)
                                     </button>
-                                </div>
-
-                                {/* Box Set Selection Cards */}
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                    {scaledBoxSets.map((scaled) => (
-                                        <button
-                                            key={scaled.boxSet.id}
-                                            onClick={() => setSelectedBoxSetId(scaled.boxSet.id)}
-                                            className={`p-4 rounded-xl text-left transition-all border-2 ${selectedBoxSetId === scaled.boxSet.id
-                                                ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/5 shadow-md'
-                                                : 'border-transparent bg-white hover:border-gray-200 hover:shadow-sm'
-                                                }`}
-                                        >
-                                            <div className="text-2xl mb-2">{scaled.boxSet.image}</div>
-                                            <h4 className="font-bold text-sm mb-1">{scaled.boxSet.name}</h4>
-                                            <p className="text-xs text-[var(--color-text-muted)] line-clamp-2 mb-2">{scaled.boxSet.description}</p>
-                                            <div className="text-lg font-bold text-[var(--color-primary)]">
-                                                ฿{Math.round(scaled.totalPrice * durationMultiplier)}
-                                                <span className="text-xs font-normal text-[var(--color-text-muted)] ml-1">
-                                                    /{planDuration === 'monthly' ? 'เดือน' : 'สัปดาห์'}
-                                                </span>
-                                            </div>
-                                        </button>
-                                    ))}
                                 </div>
 
                                 {/* Selected Set Details */}
@@ -529,51 +437,30 @@ export default function DashboardPage() {
 
                                     {/* Ingredient List */}
                                     <div className="space-y-3">
-                                        {selectedScaledSet.scaledItems.map((item, i) => {
-                                            const ing = ingredients.find(ig => ig.id === item.ingredientId);
-                                            return (
-                                                <div
-                                                    key={item.ingredientId}
-                                                    className="flex items-center gap-4 p-3 bg-[var(--color-bg)] rounded-xl hover:shadow-sm transition-all"
-                                                    style={{ animationDelay: `${i * 50}ms` }}
-                                                >
-                                                    <div className="w-12 h-12 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center text-2xl flex-shrink-0">
-                                                        {ing?.image || '🥬'}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2">
-                                                            <h4 className="font-bold text-sm">{item.ingredientName}</h4>
-                                                            <span className="text-xs px-2 py-0.5 bg-[var(--color-primary)]/15 text-[var(--color-primary)] rounded-full font-semibold">
-                                                                {item.scaledGrams}g
-                                                            </span>
-                                                            {item.scaledGrams !== item.baseGrams && (
-                                                                <span className="text-[10px] text-[var(--color-text-muted)]">
-                                                                    (base: {item.baseGrams}g)
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                    <div className="text-right flex-shrink-0">
-                                                        <div className="text-sm font-bold text-[var(--color-primary)]">
-                                                            ฿{Math.round(item.scaledPrice * durationMultiplier)}
-                                                        </div>
+                                        {selectedScaledSet.scaledItems.map((item, i) => (
+                                            <div
+                                                key={item.ingredientId}
+                                                className="flex items-center gap-4 p-3 bg-[var(--color-bg)] rounded-xl hover:shadow-sm transition-all"
+                                                style={{ animationDelay: `${i * 50}ms` }}
+                                            >
+                                                <div className="w-12 h-12 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center text-2xl flex-shrink-0">
+                                                    {item.image}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <h4 className="font-bold text-sm">{item.ingredientName}</h4>
+                                                        <span className="text-xs px-2 py-0.5 bg-[var(--color-primary)]/15 text-[var(--color-primary)] rounded-full font-semibold">
+                                                            {item.scaledGrams}g
+                                                        </span>
                                                     </div>
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                {/* TDEE Info */}
-                                <div className="glass-card p-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-lg">⚡</div>
-                                        <div>
-                                            <p className="text-sm font-medium">TDEE ของคุณ: <span className="text-blue-600 font-bold">{bmrResult?.tdee.toLocaleString()} kcal/วัน</span></p>
-                                            <p className="text-xs text-[var(--color-text-muted)]">
-                                                ระบบคูณวัตถุดิบ ×{selectedScaledSet.multiplier} ให้สารอาหารพอดี
-                                            </p>
-                                        </div>
+                                                <div className="text-right flex-shrink-0">
+                                                    <div className="text-sm font-bold text-[var(--color-primary)]">
+                                                        ฿{Math.round(item.scaledPrice * durationMultiplier)}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             </div>

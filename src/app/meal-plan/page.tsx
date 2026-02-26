@@ -2,38 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { generateMealPlanSubscription, generateWeeklyBox } from '@/lib/aiRecommendation';
-import { ingredients } from '@/lib/data/ingredients';
-import { HealthGoal, MealPlanSubscription, SubscriptionTier, WeeklyBox } from '@/lib/types';
-import { PricingManager } from '@/lib/pricingManager';
 
-const getTierInfo = (pricing: PricingManager): Record<SubscriptionTier, {
-    label: string;
-    emoji: string;
-    price: string;
-    duration: string;
-    meals: string;
-    color: string;
-    highlight?: boolean;
-}> => ({
-    weekly: {
-        label: 'รายสัปดาห์',
-        emoji: '📦',
-        price: pricing.getFormattedTotalPrice('weekly'),
-        duration: '7 วัน',
-        meals: '3 มื้อ + ว่าง',
-        color: 'from-blue-500 to-indigo-600',
-        highlight: true,
-    },
-    monthly: {
-        label: 'รายเดือน',
-        emoji: '📦📦📦📦',
-        price: pricing.getFormattedTotalPrice('monthly'),
-        duration: '30 วัน (4 สัปดาห์)',
-        meals: '3 มื้อ + ว่าง',
-        color: 'from-purple-500 to-pink-600',
-    },
-});
+type SubscriptionTier = 'weekly' | 'monthly';
 
 const DAY_SHORT = ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.', 'อา.'];
 
@@ -46,54 +16,54 @@ const mealTypeLabels: Record<string, { label: string; emoji: string; time: strin
 
 export default function MealPlanPage() {
     const [tier, setTier] = useState<SubscriptionTier>('weekly');
-    const [subscription, setSubscription] = useState<MealPlanSubscription | null>(null);
-    const [weeklyBox, setWeeklyBox] = useState<WeeklyBox | null>(null);
     const [selectedWeek, setSelectedWeek] = useState(0);
     const [selectedDay, setSelectedDay] = useState(0);
     const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
 
-    useEffect(() => {
-        const stored = localStorage.getItem('ayura-profile');
-        let goals: HealthGoal[] = ['ลดน้ำหนัก', 'ลดความเครียด'];
-        let weight = 70, height = 170, age = 30;
-        let gender: 'ชาย' | 'หญิง' | 'อื่นๆ' = 'ชาย';
+    const tierInfo = {
+        weekly: {
+            label: 'รายสัปดาห์',
+            emoji: '📦',
+            price: '฿559',
+            duration: '7 วัน',
+            meals: '3 มื้อ + ว่าง',
+            highlight: true,
+        },
+        monthly: {
+            label: 'รายเดือน',
+            emoji: '📦📦📦📦',
+            price: '฿2,012',
+            duration: '30 วัน (4 สัปดาห์)',
+            meals: '3 มื้อ + ว่าง',
+            highlight: false
+        },
+    };
 
-        if (stored) {
-            const parsed = JSON.parse(stored);
-            goals = parsed.healthGoals;
-            weight = parsed.weight;
-            height = parsed.height;
-            age = parsed.age;
-            gender = parsed.gender;
-        }
-
-        const sub = generateMealPlanSubscription(goals, tier, weight, height, age, gender);
-        const box = generateWeeklyBox(goals, 1);
-
-        setSubscription(sub);
-        setWeeklyBox(box);
-        setSelectedWeek(0);
-        setSelectedDay(0);
-        setExpandedRecipe(null);
-    }, [tier]);
-
-    if (!subscription) {
-        return (
-            <div className="min-h-screen pt-24 flex items-center justify-center">
-                <div className="text-center">
-                    <div className="text-4xl animate-spin-slow mb-4">🌿</div>
-                    <p className="text-[var(--color-text-light)]">กำลังสร้างแผนอาหาร...</p>
-                </div>
-            </div>
-        );
-    }
+    const subscription = {
+        weeks: [
+            {
+                weekNumber: 1,
+                avgCaloriesPerDay: 1950,
+                totalProtein: 145,
+                totalCarbs: 210,
+                totalFat: 52,
+                days: Array(7).fill(0).map((_, i) => ({
+                    dayLabel: `วันที่ ${i + 1}`,
+                    totalCalories: 1950,
+                    totalProtein: 145,
+                    totalCarbs: 210,
+                    totalFat: 52,
+                    meals: [
+                        { type: 'เช้า', recipe: { id: `r1-${i}`, name: 'แซนด์วิชไก่', description: 'แซนด์วิชไก่ย่างไขมันต่ำ', calories: 450, protein: 40, carbs: 30, fat: 12, cookTime: '10 นาที', image: '🥪', items: [], instructions: [] } },
+                        { type: 'กลางวัน', recipe: { id: `r2-${i}`, name: 'ข้าวผัดต้มยำ', description: 'ข้าวกล้องผัดต้มยำกุ้ง', calories: 600, protein: 35, carbs: 70, fat: 15, cookTime: '30 นาที', image: '🍛', items: [], instructions: [] } }
+                    ]
+                }))
+            }
+        ]
+    };
 
     const currentWeek = subscription.weeks[selectedWeek];
     const currentDay = currentWeek.days[selectedDay];
-
-    // Dynamic pricing using PricingManager
-    const pricing = new PricingManager(weeklyBox);
-    const tierInfo = getTierInfo(pricing);
 
     return (
         <div className="min-h-screen pt-24 pb-16 bg-[var(--color-bg-section)]">
@@ -104,7 +74,7 @@ export default function MealPlanPage() {
                         🍽️ แผนอาหารสุขภาพ
                     </h1>
                     <p className="text-[var(--color-text-light)]">
-                        AI ออกแบบเมนูเฉพาะคุณ • ไม่ซ้ำทุกวัน • ครบโภชนาการ
+                        ข้อมูลจำลองแบบ Static (ลบระบบอัลกอริทึมจากฝั่ง Backend แล้ว)
                     </p>
                 </div>
 
@@ -148,30 +118,6 @@ export default function MealPlanPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Left: Navigation & Summary */}
                     <div className="lg:col-span-1 space-y-6">
-                        {/* Week Navigation (for monthly) */}
-                        {subscription.weeks.length > 1 && (
-                            <div className="glass-card p-5 animate-fade-in">
-                                <h4 className="font-bold mb-3 flex items-center gap-2 text-[var(--color-primary-dark)]">
-                                    📆 สัปดาห์
-                                </h4>
-                                <div className="grid grid-cols-4 gap-2">
-                                    {subscription.weeks.map((week, i) => (
-                                        <button
-                                            key={i}
-                                            onClick={() => { setSelectedWeek(i); setSelectedDay(0); setExpandedRecipe(null); }}
-                                            className={`py-3 px-2 rounded-xl text-center font-medium text-sm transition-all ${selectedWeek === i
-                                                ? 'bg-[var(--color-primary)] text-white shadow-md'
-                                                : 'bg-[var(--color-bg-section)] text-[var(--color-text-light)] hover:bg-[var(--color-primary)]/10'
-                                                }`}
-                                        >
-                                            <div className="text-lg mb-0.5">W{week.weekNumber}</div>
-                                            <div className="text-[10px] opacity-75">สัปดาห์ {week.weekNumber}</div>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
                         {/* Day Navigation */}
                         <div className="glass-card p-5 animate-fade-in delay-100">
                             <h4 className="font-bold mb-3 flex items-center gap-2 text-[var(--color-primary-dark)]">
@@ -204,45 +150,20 @@ export default function MealPlanPage() {
                             </h4>
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="p-3 bg-orange-50 rounded-xl text-center">
-                                    <div className="text-xl font-bold text-orange-600">{Number(currentDay.totalCalories.toFixed(1))}</div>
+                                    <div className="text-xl font-bold text-orange-600">{currentDay.totalCalories}</div>
                                     <div className="text-[10px] text-orange-400 font-medium">kcal</div>
                                 </div>
                                 <div className="p-3 bg-red-50 rounded-xl text-center">
-                                    <div className="text-xl font-bold text-red-600">{Number(currentDay.totalProtein.toFixed(1))}g</div>
+                                    <div className="text-xl font-bold text-red-600">{currentDay.totalProtein}g</div>
                                     <div className="text-[10px] text-red-400 font-medium">โปรตีน</div>
                                 </div>
                                 <div className="p-3 bg-yellow-50 rounded-xl text-center">
-                                    <div className="text-xl font-bold text-amber-600">{Number(currentDay.totalCarbs.toFixed(1))}g</div>
+                                    <div className="text-xl font-bold text-amber-600">{currentDay.totalCarbs}g</div>
                                     <div className="text-[10px] text-amber-400 font-medium">คาร์บ</div>
                                 </div>
                                 <div className="p-3 bg-green-50 rounded-xl text-center">
-                                    <div className="text-xl font-bold text-green-600">{Number(currentDay.totalFat.toFixed(1))}g</div>
+                                    <div className="text-xl font-bold text-green-600">{currentDay.totalFat}g</div>
                                     <div className="text-[10px] text-green-400 font-medium">ไขมัน</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Weekly Summary */}
-                        <div className="glass-card p-5 animate-fade-in delay-300">
-                            <h4 className="font-bold mb-3 flex items-center gap-2 text-[var(--color-primary-dark)]">
-                                📈 ภาพรวมสัปดาห์ {currentWeek.weekNumber}
-                            </h4>
-                            <div className="space-y-3">
-                                <div className="flex justify-between items-center p-3 bg-[var(--color-bg-section)] rounded-xl">
-                                    <span className="text-sm text-[var(--color-text-light)]">เฉลี่ย kcal/วัน</span>
-                                    <span className="font-bold text-[var(--color-primary)]">{currentWeek.avgCaloriesPerDay}</span>
-                                </div>
-                                <div className="flex justify-between items-center p-3 bg-[var(--color-bg-section)] rounded-xl">
-                                    <span className="text-sm text-[var(--color-text-light)]">โปรตีนรวม</span>
-                                    <span className="font-bold text-red-500">{Number(currentWeek.totalProtein.toFixed(1))}g</span>
-                                </div>
-                                <div className="flex justify-between items-center p-3 bg-[var(--color-bg-section)] rounded-xl">
-                                    <span className="text-sm text-[var(--color-text-light)]">คาร์บรวม</span>
-                                    <span className="font-bold text-amber-500">{Number(currentWeek.totalCarbs.toFixed(1))}g</span>
-                                </div>
-                                <div className="flex justify-between items-center p-3 bg-[var(--color-bg-section)] rounded-xl">
-                                    <span className="text-sm text-[var(--color-text-light)]">ไขมันรวม</span>
-                                    <span className="font-bold text-green-500">{Number(currentWeek.totalFat.toFixed(1))}g</span>
                                 </div>
                             </div>
                         </div>
@@ -258,31 +179,8 @@ export default function MealPlanPage() {
                                         {currentDay.dayLabel}
                                     </h3>
                                     <p className="text-sm text-[var(--color-text-muted)]">
-                                        {subscription.weeks.length > 1 && `สัปดาห์ ${currentWeek.weekNumber} • `}
-                                        {currentDay.meals.length} เมนู • {Number(currentDay.totalCalories.toFixed(1))} kcal
+                                        {currentDay.meals.length} เมนู • {currentDay.totalCalories} kcal
                                     </p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => {
-                                            if (selectedDay > 0) { setSelectedDay(selectedDay - 1); setExpandedRecipe(null); }
-                                            else if (selectedWeek > 0) { setSelectedWeek(selectedWeek - 1); setSelectedDay(6); setExpandedRecipe(null); }
-                                        }}
-                                        disabled={selectedDay === 0 && selectedWeek === 0}
-                                        className="w-10 h-10 rounded-xl bg-[var(--color-bg-section)] flex items-center justify-center text-[var(--color-text-light)] hover:bg-[var(--color-primary)]/10 transition-all disabled:opacity-30"
-                                    >
-                                        ←
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            if (selectedDay < 6) { setSelectedDay(selectedDay + 1); setExpandedRecipe(null); }
-                                            else if (selectedWeek < subscription.weeks.length - 1) { setSelectedWeek(selectedWeek + 1); setSelectedDay(0); setExpandedRecipe(null); }
-                                        }}
-                                        disabled={selectedDay === 6 && selectedWeek === subscription.weeks.length - 1}
-                                        className="w-10 h-10 rounded-xl bg-[var(--color-bg-section)] flex items-center justify-center text-[var(--color-text-light)] hover:bg-[var(--color-primary)]/10 transition-all disabled:opacity-30"
-                                    >
-                                        →
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -290,11 +188,8 @@ export default function MealPlanPage() {
                         {/* Meal Cards */}
                         <div className="space-y-4">
                             {currentDay.meals.map((meal, i) => {
-                                const mealInfo = mealTypeLabels[meal.type];
+                                const mealInfo = mealTypeLabels[meal.type] || mealTypeLabels['เช้า'];
                                 const isExpanded = expandedRecipe === `${selectedWeek}-${selectedDay}-${meal.recipe.id}`;
-                                const mealIngredients = meal.recipe.items.map(item => item.ingredientId)
-                                    .map((id) => ingredients.find((ing: any) => ing.id === id))
-                                    .filter(Boolean);
 
                                 return (
                                     <div
@@ -302,7 +197,6 @@ export default function MealPlanPage() {
                                         className="glass-card overflow-hidden animate-fade-in"
                                         style={{ animationDelay: `${i * 80}ms` }}
                                     >
-                                        {/* Meal Header */}
                                         <div
                                             className="p-5 cursor-pointer hover:bg-gray-50/50 transition-colors"
                                             onClick={() => setExpandedRecipe(isExpanded ? null : `${selectedWeek}-${selectedDay}-${meal.recipe.id}`)}
@@ -339,7 +233,6 @@ export default function MealPlanPage() {
                                                 </div>
                                             </div>
 
-                                            {/* Macro mini bar */}
                                             <div className="flex gap-3 mt-3 text-xs">
                                                 <span className="flex items-center gap-1 bg-red-50 px-2 py-1 rounded-full text-red-600">
                                                     P {meal.recipe.protein}g
@@ -352,72 +245,9 @@ export default function MealPlanPage() {
                                                 </span>
                                             </div>
                                         </div>
-
-                                        {/* Expanded Details */}
-                                        {isExpanded && (
-                                            <div className="border-t border-gray-100 p-5 bg-gradient-to-b from-gray-50/50 to-white animate-fade-in">
-                                                {/* Ingredients Used */}
-                                                <div className="mb-4">
-                                                    <h5 className="text-sm font-bold text-[var(--color-primary-dark)] mb-2">
-                                                        🧅 วัตถุดิบที่ใช้
-                                                    </h5>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {meal.recipe.items.map((item, idx) => {
-                                                            const ing = ingredients.find(i => i.id === item.ingredientId);
-                                                            if (!ing) return null;
-                                                            return (
-                                                                <div
-                                                                    key={`${ing.id}-${idx}`}
-                                                                    className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full border border-gray-100 shadow-sm"
-                                                                >
-                                                                    <span className="text-lg">{ing.image}</span>
-                                                                    <span className="text-xs font-medium">{ing.name} ({item.amountInGrams} กรัม)</span>
-                                                                    {ing.calories} kcal/{ing.gramsPerUnit}g
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-
-                                                {/* Cooking Instructions */}
-                                                <div>
-                                                    <h5 className="text-sm font-bold text-[var(--color-primary-dark)] mb-2">
-                                                        👨‍🍳 วิธีทำ
-                                                    </h5>
-                                                    <ol className="space-y-2">
-                                                        {meal.recipe.instructions.map((step, stepIdx) => (
-                                                            <li key={stepIdx} className="flex gap-3 items-start">
-                                                                <span className="w-6 h-6 bg-[var(--color-primary)] text-white text-xs rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 font-bold">
-                                                                    {stepIdx + 1}
-                                                                </span>
-                                                                <span className="text-sm text-[var(--color-text-light)] leading-relaxed">
-                                                                    {step}
-                                                                </span>
-                                                            </li>
-                                                        ))}
-                                                    </ol>
-                                                </div>
-                                            </div>
-                                        )}
                                     </div>
                                 );
                             })}
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex flex-col sm:flex-row gap-4 mt-6">
-                            <Link
-                                href="/checkout"
-                                className="btn-primary flex-1 justify-center !py-4 text-base"
-                            >
-                                สมัครแผนนี้ 🛒
-                            </Link>
-                            <Link
-                                href="/dashboard"
-                                className="btn-outline flex-1 justify-center !py-4 text-base"
-                            >
-                                กลับไปแดชบอร์ด 📊
-                            </Link>
                         </div>
                     </div>
                 </div>

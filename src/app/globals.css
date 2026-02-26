@@ -19,11 +19,7 @@
   --color-text-muted: #9CA3AF;
   --color-border: #E5E7EB;
 
-  /* Element colors */
-  --color-earth: #8B6914;
-  --color-water: #1E90FF;
-  --color-wind: #87CEEB;
-  --color-fire: #FF4500;
+
 
   /* Status */
   --color-success: #10B981;
@@ -50,9 +46,11 @@ body {
 ::-webkit-scrollbar {
   width: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--color-primary-light);
   border-radius: 3px;
@@ -60,38 +58,83 @@ body {
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(30px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideInLeft {
-  from { opacity: 0; transform: translateX(-30px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(45, 106, 79, 0.4); }
-  50% { box-shadow: 0 0 0 12px rgba(45, 106, 79, 0); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(45, 106, 79, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 0 12px rgba(45, 106, 79, 0);
+  }
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 @keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .animate-fade-in {
@@ -115,7 +158,7 @@ body {
 }
 
 .animate-shimmer {
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
   background-size: 200% 100%;
   animation: shimmer 2s infinite;
 }
@@ -125,11 +168,25 @@ body {
 }
 
 /* Delay utility classes */
-.delay-100 { animation-delay: 100ms; }
-.delay-200 { animation-delay: 200ms; }
-.delay-300 { animation-delay: 300ms; }
-.delay-400 { animation-delay: 400ms; }
-.delay-500 { animation-delay: 500ms; }
+.delay-100 {
+  animation-delay: 100ms;
+}
+
+.delay-200 {
+  animation-delay: 200ms;
+}
+
+.delay-300 {
+  animation-delay: 300ms;
+}
+
+.delay-400 {
+  animation-delay: 400ms;
+}
+
+.delay-500 {
+  animation-delay: 500ms;
+}
 
 /* Glass morphism card */
 .glass-card {
@@ -154,21 +211,7 @@ body {
   background: linear-gradient(135deg, #1B4332 0%, #2D6A4F 40%, #40916C 70%, #52B788 100%);
 }
 
-.gradient-fire {
-  background: linear-gradient(135deg, #FF4500, #FF6347);
-}
 
-.gradient-water {
-  background: linear-gradient(135deg, #1E90FF, #87CEEB);
-}
-
-.gradient-wind {
-  background: linear-gradient(135deg, #87CEEB, #B0E0E6);
-}
-
-.gradient-earth {
-  background: linear-gradient(135deg, #8B6914, #D4A373);
-}
 
 /* Text gradient */
 .text-gradient {
@@ -182,6 +225,7 @@ body {
 .hover-lift {
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
+
 .hover-lift:hover {
   transform: translateY(-4px);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
@@ -201,6 +245,7 @@ body {
   align-items: center;
   gap: 8px;
 }
+
 .btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(45, 106, 79, 0.35);
@@ -219,6 +264,7 @@ body {
   align-items: center;
   gap: 8px;
 }
+
 .btn-secondary:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(212, 163, 115, 0.35);
@@ -237,6 +283,7 @@ body {
   align-items: center;
   gap: 8px;
 }
+
 .btn-outline:hover {
   background: var(--color-primary);
   color: white;

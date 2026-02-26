@@ -28,7 +28,7 @@ export default function Footer() {
                         <ul className="space-y-2">
                             {[
                                 { href: '/', label: 'หน้าแรก' },
-                                { href: '/assessment', label: 'ประเมินสุขภาพ' },
+                                { href: '/login', label: 'เข้าสู่ระบบ / สมัครสมาชิก' },
                                 { href: '/dashboard', label: 'กล่องสุขภาพ' },
                                 { href: '/bio-age', label: 'แต้มสุขภาพ' },
                             ].map((link) => (

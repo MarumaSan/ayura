@@ -1,12 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { generateWeeklyBox } from '@/lib/aiRecommendation';
-import { ThaiElement, HealthGoal, WeeklyBox } from '@/lib/types';
-import { PricingManager } from '@/lib/pricingManager';
+
 
 export default function CheckoutPage() {
-    const [weeklyBox, setWeeklyBox] = useState<WeeklyBox | null>(null);
+    const [weeklyBox, setWeeklyBox] = useState<any | null>(null);
     const [plan, setPlan] = useState<'weekly' | 'monthly'>('weekly');
     const [address, setAddress] = useState('');
     const [phone, setPhone] = useState('');
@@ -20,22 +18,46 @@ export default function CheckoutPage() {
             const parsed = JSON.parse(stored);
             setProfile(parsed);
             setProfileName(parsed.name);
-            // Replace with simplified parameters avoiding element
-            const box = generateWeeklyBox(parsed.healthGoals, 8);
+            const box = {
+                items: [
+                    { ingredient: { id: 'i1', name: 'อกไก่ออร์แกนิก', image: '🍗', pricePerUnit: 189 } },
+                    { ingredient: { id: 'i2', name: 'ผักเชียงดา', image: '🥬', pricePerUnit: 85 } },
+                    { ingredient: { id: 'i3', name: 'ขิงสด', image: '🫚', pricePerUnit: 55 } },
+                    { ingredient: { id: 'i4', name: 'ใบเตย', image: '🍃', pricePerUnit: 35 } },
+                    { ingredient: { id: 'i5', name: 'ข้าวกล้อง', image: '🌾', pricePerUnit: 145 } }
+                ]
+            };
             setWeeklyBox(box);
         } else {
-            // Replace with simplified parameters avoiding element
-            const box = generateWeeklyBox(['ลดน้ำหนัก'] as HealthGoal[], 8);
+            const box = {
+                items: [
+                    { ingredient: { id: 'i1', name: 'อกไก่ออร์แกนิก', image: '🍗', pricePerUnit: 189 } },
+                    { ingredient: { id: 'i2', name: 'ผักเชียงดา', image: '🥬', pricePerUnit: 85 } },
+                    { ingredient: { id: 'i3', name: 'ขิงสด', image: '🫚', pricePerUnit: 55 } },
+                    { ingredient: { id: 'i4', name: 'ใบเตย', image: '🍃', pricePerUnit: 35 } },
+                    { ingredient: { id: 'i5', name: 'ข้าวกล้อง', image: '🌾', pricePerUnit: 145 } }
+                ]
+            };
             setWeeklyBox(box);
             setProfileName('ผู้ใช้ตัวอย่าง');
         }
     }, []);
 
-    const pricing = new PricingManager(weeklyBox);
-    const subtotal = pricing.getWeeklyPrice();
-    const deliveryFee = pricing.getDeliveryFee();
-    const discountAmount = pricing.getDiscountAmount(plan);
-    const total = pricing.getTotalPrice(plan);
+    const subtotal = 509;
+    const deliveryFee = 50;
+
+    const getTotalPrice = (p: string) => {
+        if (p === 'weekly') return subtotal + deliveryFee;
+        return Math.round((subtotal * 4) * 0.9) + deliveryFee;
+    };
+
+    const getDiscountAmount = (p: string) => {
+        if (p === 'weekly') return 0;
+        return Math.round((subtotal * 4) * 0.1);
+    };
+
+    const discountAmount = getDiscountAmount(plan);
+    const total = getTotalPrice(plan);
     const planMultiplier = plan === 'monthly' ? 4 : 1;
 
     const handleOrder = () => {
@@ -80,7 +102,7 @@ export default function CheckoutPage() {
                                     <div className="text-3xl mb-2">📦</div>
                                     <div className="font-bold text-sm">รายสัปดาห์</div>
                                     <div className="text-lg font-bold text-[var(--color-primary)] mt-1">
-                                        ฿{pricing.getTotalPrice('weekly')}
+                                        ฿{getTotalPrice('weekly')}
                                     </div>
                                     <div className="text-xs text-[var(--color-text-muted)] mt-1">ต่อสัปดาห์</div>
                                 </button>
@@ -97,7 +119,7 @@ export default function CheckoutPage() {
                                     <div className="text-3xl mb-2">📦📦📦📦</div>
                                     <div className="font-bold text-sm">รายเดือน (4 สัปดาห์)</div>
                                     <div className="text-lg font-bold text-[var(--color-primary)] mt-1">
-                                        ฿{pricing.getTotalPrice('monthly')}
+                                        ฿{getTotalPrice('monthly')}
                                     </div>
                                     <div className="text-xs text-[var(--color-text-muted)] mt-1">ต่อเดือน</div>
                                 </button>
@@ -181,7 +203,7 @@ export default function CheckoutPage() {
                             </h3>
 
                             <div className="space-y-3 mb-4">
-                                {weeklyBox.items.map(item => item.ingredient).map((item) => (
+                                {weeklyBox.items.map((item: any) => item.ingredient).map((item: any) => (
                                     <div key={item.id} className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                             <span className="text-xl">{item.image}</span>

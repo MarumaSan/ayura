@@ -84,8 +84,8 @@ export default function Home() {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/assessment" className="btn-secondary text-base !py-4 !px-8 justify-center">
-                  เริ่มประเมินสุขภาพ 🌟
+                <Link href="/login" className="btn-primary text-base sm:text-lg !py-3 sm:!py-4 !px-6 sm:!px-8 w-full sm:w-auto text-center shadow-lg hover:-translate-y-1">
+                  เข้าสู่ระบบเลย 🚀
                 </Link>
                 <Link href="/dashboard" className="btn-outline !border-white/30 !text-white hover:!bg-white/10 text-base !py-4 !px-8 justify-center">
                   ดูตัวอย่างกล่อง
