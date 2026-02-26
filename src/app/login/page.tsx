@@ -34,7 +34,8 @@ export default function LoginPage() {
                         userId: data.user.id,
                         name: data.user.name,
                         points: data.user.points,
-                        isProfileComplete: data.user.isProfileComplete
+                        isProfileComplete: data.user.isProfileComplete,
+                        role: data.user.role
                     }));
 
                     window.dispatchEvent(new Event('auth-change'));

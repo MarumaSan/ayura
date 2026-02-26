@@ -25,6 +25,9 @@ export async function POST(request: Request) {
             );
         }
 
+        // Determine if profile is complete (fallback for legacy or seeded users)
+        const isComplete = user.isProfileComplete || (user.weight && user.weight > 0 && user.age && user.age > 0);
+
         // Success (In production this would generate a JWT session)
         return NextResponse.json({
             message: 'Login successful',
@@ -33,7 +36,8 @@ export async function POST(request: Request) {
                 name: user.name,
                 email: user.email,
                 points: user.points,
-                isProfileComplete: user.isProfileComplete
+                isProfileComplete: isComplete,
+                role: user.role || 'user'
             }
         });
 

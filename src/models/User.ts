@@ -14,7 +14,8 @@ const UserSchema = new mongoose.Schema({
     height: { type: Number, default: 0 }, // cm
     healthGoals: [{ type: String }],
     points: { type: Number, default: 0 },
-    streak: { type: Number, default: 0 }
+    streak: { type: Number, default: 0 },
+    role: { type: String, enum: ['user', 'admin'], default: 'user' }
 }, { timestamps: true });
 
 export const User = mongoose.models.User || mongoose.model('User', UserSchema);

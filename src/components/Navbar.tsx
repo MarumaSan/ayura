@@ -4,18 +4,18 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 
 const navLinks = [
-    { href: '/', label: 'หน้าแรก' },
-    { href: '/login', label: 'เข้าสู่ระบบ / สมัครสมาชิก' },
-    { href: '/dashboard', label: 'กล่องสุขภาพ' },
-    { href: '/meal-plan', label: 'แผนอาหาร' },
-    { href: '/bio-age', label: 'แต้มสุขภาพ' },
-    { href: '/admin', label: 'สำหรับชุมชน' },
+    { href: '/', label: 'หน้าแรก', public: true },
+    { href: '/dashboard', label: 'กล่องสุขภาพ', public: false },
+    { href: '/meal-plan', label: 'แผนอาหาร', public: false },
+    { href: '/bio-age', label: 'แต้มสุขภาพ', public: false },
+    { href: '/admin', label: 'สำหรับชุมชน', public: false, adminOnly: true },
 ];
 
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [userName, setUserName] = useState('');
+    const [userRole, setUserRole] = useState('user');
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
     const checkLoginStatus = () => {
@@ -24,9 +24,11 @@ export default function Navbar() {
             setIsLoggedIn(true);
             const data = JSON.parse(profile);
             setUserName(data.name || 'ผู้ใช้');
+            setUserRole(data.role || 'user');
         } else {
             setIsLoggedIn(false);
             setUserName('');
+            setUserRole('user');
             setIsDropdownOpen(false); // Close dropdown if logged out
         }
     };
@@ -54,9 +56,25 @@ export default function Navbar() {
     };
 
     const visibleNavLinks = navLinks.filter(link => {
-        if (isLoggedIn && link.href === '/login') return false;
+        if (link.adminOnly && userRole !== 'admin') return false;
         return true;
     });
+
+    const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, link: any) => {
+        if (!link.public && !isLoggedIn) {
+            e.preventDefault();
+            // Redirect to login if trying to access a private route while logged out
+            window.location.href = '/login';
+            return;
+        }
+
+        if (link.adminOnly && userRole !== 'admin') {
+            e.preventDefault();
+            // Block non-admins
+            window.location.href = '/dashboard';
+            return;
+        }
+    };
 
     return (
         <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-white/20">
@@ -79,6 +97,7 @@ export default function Navbar() {
                             <Link
                                 key={link.href}
                                 href={link.href}
+                                onClick={(e) => handleNavClick(e, link)}
                                 className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--color-text)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 transition-all duration-200"
                             >
                                 {link.label}
@@ -188,7 +207,10 @@ export default function Navbar() {
                         <Link
                             key={link.href}
                             href={link.href}
-                            onClick={() => setIsOpen(false)}
+                            onClick={(e) => {
+                                setIsOpen(false);
+                                handleNavClick(e, link);
+                            }}
                             className="block px-4 py-3 rounded-lg text-sm font-medium text-[var(--color-text)] hover:bg-[var(--color-primary)]/10 transition-colors"
                         >
                             {link.label}

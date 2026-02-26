@@ -44,7 +44,8 @@ export async function POST(request: Request) {
                 name: newUser.name,
                 email: newUser.email,
                 points: newUser.points,
-                isProfileComplete: newUser.isProfileComplete
+                isProfileComplete: newUser.isProfileComplete,
+                role: newUser.role || 'user'
             }
         }, { status: 201 });
 

@@ -28,6 +28,11 @@ export default function OnboardingPage() {
         const storedProfile = localStorage.getItem('ayuraProfile');
         if (storedProfile) {
             const profile = JSON.parse(storedProfile);
+            // If they somehow land here but their profile is complete, bounce them to dashboard
+            if (profile.isProfileComplete) {
+                router.push('/dashboard');
+                return;
+            }
             setUserId(profile.userId);
         } else {
             // Kick out if no user session

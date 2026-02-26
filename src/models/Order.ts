@@ -13,7 +13,8 @@ const BoxSchema = new mongoose.Schema({
 const OrderSchema = new mongoose.Schema({
     id: { type: String, required: true, unique: true },
     customerName: { type: String, required: true },
-    userId: { type: String }, // Optional link to User
+    userId: { type: String }, // Link to User
+    mealSetId: { type: String }, // Link to purchased MealSet
     status: {
         type: String,
         required: true,
@@ -23,7 +24,7 @@ const OrderSchema = new mongoose.Schema({
     totalPrice: { type: Number, required: true },
     plan: { type: String, enum: ['weekly', 'monthly'], required: true },
     address: { type: String, required: true },
-    deliveryDate: { type: String, required: true }, // or Date
+    deliveryDate: { type: String, required: true },
     box: { type: BoxSchema, required: true }
 }, { timestamps: true });
 
