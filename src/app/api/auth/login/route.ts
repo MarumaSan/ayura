@@ -37,7 +37,11 @@ export async function POST(request: Request) {
                 email: user.email,
                 points: user.points,
                 isProfileComplete: isComplete,
-                role: user.role || 'user'
+                role: user.role || 'user',
+                weight: user.weight,
+                height: user.height,
+                age: user.age,
+                gender: user.gender
             }
         });
 

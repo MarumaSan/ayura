@@ -4,6 +4,7 @@ import { Ingredient } from '@/models/Ingredient';
 import { User } from '@/models/User';
 import { Order } from '@/models/Order';
 import { MealSet } from '@/models/MealSet';
+import { Recipe } from '@/models/Recipe';
 
 const sampleIngredients = [
     { id: 'i1', name: 'อกไก่ออร์แกนิก', nameEnglish: 'Organic Chicken Breast', category: 'โปรตีน', image: '🍗', community: 'สหกรณ์การเกษตรดอยคำ', inStock: 150, unit: 'ชิ้น', pricePerUnit: 189, gramPerUnit: 120, calories100g: 165, protein100g: 31, carbs100g: 0, fat100g: 3.6 },
@@ -25,6 +26,7 @@ const sampleMealSets = [
         description: 'สมดุลทั้งโปรตีน คาร์บ และไขมันที่ดี เหมาะสำหรับคนที่ต้องการดูแลสุขภาพทั่วไป',
         image: '🥗',
         tag: 'แนะนำ',
+        targetBmi: 'normal',
         priceWeekly: 790,
         priceMonthly: 2800,
         isActive: true,
@@ -93,6 +95,26 @@ const sampleMealSets = [
                     'กรองเอาเฉพาะน้ำ ดื่มอุ่นๆ',
                 ]
             },
+            {
+                name: 'ปลาทูนึ่งผักเชียงดาแกล้มมะนาว',
+                image: '🐟',
+                mealType: 'กลางวัน',
+                cookTime: 18,
+                servings: 1,
+                calories: 340,
+                ingredients: [
+                    { ingredientId: 'i6', gramsUsed: 125, note: 'ครึ่งตัว' },
+                    { ingredientId: 'i2', gramsUsed: 50, note: 'ลวกสุก' },
+                    { ingredientId: 'i8', gramsUsed: 20, note: 'น้ำจิ้ม' },
+                    { ingredientId: 'i5', gramsUsed: 100, note: 'หุงสุก' },
+                ],
+                steps: [
+                    'นึ่งปลาทูโอเมก้า 10-12 นาทีจนสุก',
+                    'ลวกผักเชียงดาในน้ำเดือด 1 นาทีแล้วน็อคน้ำเย็น',
+                    'ทำน้ำจิ้มซีฟู้ดมะนาวสด กระเทียม สับละเอียด',
+                    'เสิร์ฟพร้อมข้าวกล้องอุ่นๆ',
+                ]
+            },
         ]
     },
     {
@@ -101,6 +123,7 @@ const sampleMealSets = [
         description: 'โปรตีนสูง คาร์บต่ำ ไขมันดี ช่วยเผาผลาญและอิ่มนาน เหมาะสำหรับคนต้องการลดน้ำหนัก',
         image: '🔥',
         tag: 'ยอดนิยม',
+        targetBmi: 'overweight',
         priceWeekly: 890,
         priceMonthly: 3200,
         isActive: true,
@@ -170,6 +193,25 @@ const sampleMealSets = [
                     'ดื่มอุ่นๆ หรือแช่แข็งดื่มเย็น',
                 ]
             },
+            {
+                name: 'อกไก่ผัดพริกไทยดำบรอกโคลี',
+                image: '🍗',
+                mealType: 'กลางวัน',
+                cookTime: 15,
+                servings: 1,
+                calories: 320,
+                ingredients: [
+                    { ingredientId: 'i1', gramsUsed: 150, note: 'หั่นชิ้นพอดีคำ' },
+                    { ingredientId: 'i7', gramsUsed: 120, note: 'หั่นชิ้นเล็ก' },
+                    { ingredientId: 'i10', gramsUsed: 10, note: 'บุบพอแตก' },
+                ],
+                steps: [
+                    'ตั้งกระทะใส่น้ำมันมะกอกเล็กน้อย ผัดกระเทียมจนหอม',
+                    'ใส่อกไก่ลงไปผัดจนเริ่มสุก',
+                    'ใส่บรอกโคลีและพริกไทยดำ ปรุงรสด้วยซีอิ๊วขาวโซเดียมต่ำ',
+                    'ผัดเร็วๆ ด้วยไฟแรงจนสุกทั่ว จัดเสิร์ฟ',
+                ]
+            },
         ]
     },
     {
@@ -178,6 +220,7 @@ const sampleMealSets = [
         description: 'โปรตีนสูงมาก คาร์บไม่กลั้ว เพื่อสร้างกล้ามเนื้อและฟื้นฟูร่างกายหลังออกกำลังกาย',
         image: '💪',
         tag: '',
+        targetBmi: 'underweight',
         priceWeekly: 990,
         priceMonthly: 3600,
         isActive: true,
@@ -250,12 +293,32 @@ const sampleMealSets = [
                     'จัดจาน บีบมะนาวราด',
                 ]
             },
+            {
+                name: 'ไข่เจียวสมุนไพรอกไก่สับ',
+                image: '🍳',
+                mealType: 'เช้า',
+                cookTime: 12,
+                servings: 1,
+                calories: 450,
+                ingredients: [
+                    { ingredientId: 'i9', gramsUsed: 165, note: '3 ฟอง' },
+                    { ingredientId: 'i1', gramsUsed: 100, note: 'สับละเอียด' },
+                    { ingredientId: 'i10', gramsUsed: 5, note: 'สับ' },
+                    { ingredientId: 'i3', gramsUsed: 5, note: 'ซอยละเอียด' },
+                ],
+                steps: [
+                    'ตีไข่ไก่บ้าน 3 ฟอง ผสมกับอกไก่สับและสมุนไพรซอย',
+                    'ปรุงรสด้วยเกลือและพริกไทย',
+                    'ตั้งกระทะไฟกลาง ค่อยๆ เทไข่ลงไป',
+                    'ทอดจนสุกเหลืองทั้งสองด้าน เสิร์ฟร้อนๆ',
+                ]
+            }
         ]
     }
 ];
 
 const sampleUsers = [
-    { id: 'user-001', name: 'Admin (สมหญิง)', email: 'somying@example.com', password: 'password123', age: 32, realAge: 32, bioAge: 28, gender: 'หญิง', weight: 55, height: 162, healthGoals: ['ลดไขมัน', 'เพิ่มภูมิคุ้มกัน'], points: 250, streak: 12, isProfileComplete: true, role: 'admin' },
+    { id: 'user-001', name: 'Admin (สมหญิง)', email: 'somying@example.com', password: 'password123', age: 32, realAge: 32, bioAge: 28, gender: 'หญิง', weight: 55, height: 162, healthGoals: ['ลดไขมัน', 'เพิ่มภูมิคุ้มกัน'], points: 600, streak: 5, isProfileComplete: true, role: 'admin' },
     { id: 'user-002', name: 'คุณสมชาย ใจแกร่ง', email: 'somchai@example.com', password: 'password123', age: 45, realAge: 45, bioAge: 42, gender: 'ชาย', weight: 75, height: 175, healthGoals: ['สร้างกล้ามเนื้อ', 'ลดภาวะอักเสบ'], points: 120, streak: 5, isProfileComplete: true, role: 'user' },
 ];
 
@@ -265,7 +328,18 @@ const sampleOrders = [
         userId: 'user-001', mealSetId: 'ms-weightloss',
         status: 'รอจัดส่ง', totalPrice: 890, plan: 'weekly',
         address: '123/45 ถ.สุขุมวิท', deliveryDate: '26/02/2026',
+        boxSize: 'M', sizeMultiplier: 1.0,
+        createdAt: new Date('2026-02-26T00:00:00Z'),
         box: { items: [{ ingredientId: 'i1', name: 'อกไก่ออร์แกนิก', image: '🍗' }, { ingredientId: 'i7', name: 'บรอกโคลีออร์แกนิก', image: '🥦' }] }
+    },
+    {
+        id: 'ORD-002', customerName: 'Admin (สมหญิง)',
+        userId: 'user-001', mealSetId: 'ms-health',
+        status: 'สำเร็จ', totalPrice: 2800, plan: 'monthly',
+        address: '123/45 ถ.สุขุมวิท', deliveryDate: '15/01/2026',
+        boxSize: 'L', sizeMultiplier: 1.3,
+        createdAt: new Date('2026-01-15T00:00:00Z'),
+        box: { items: [{ ingredientId: 'i5', name: 'ข้าวกล้อง', image: '🌾' }, { ingredientId: 'i8', name: 'มะนาวสด', image: '🍋' }] }
     },
 ];
 
@@ -273,13 +347,41 @@ export async function GET() {
     try {
         await connectToDatabase();
 
+        // 1. Clear Old Data
         await Ingredient.deleteMany({});
         await User.deleteMany({});
         await Order.deleteMany({});
         await MealSet.deleteMany({});
+        await Recipe.deleteMany({});
 
+        // 2. Seed Ingredients
         const insertedIngredients = await Ingredient.insertMany(sampleIngredients);
-        const insertedMealSets = await MealSet.insertMany(sampleMealSets);
+
+        // 3. Seed Recipes & Prepare MealSets
+        // We iterate through sampleMealSets, save their recipes, 
+        // and replace the embedded recipes with their new ObjectIds.
+        const mealSetsToSave = [];
+        let totalRecipes = 0;
+
+        for (const set of sampleMealSets) {
+            const recipeIds = [];
+            for (const recipeData of set.recipes) {
+                const newRecipe = new Recipe(recipeData);
+                const savedRecipe = await newRecipe.save();
+                recipeIds.push(savedRecipe._id);
+                totalRecipes++;
+            }
+
+            mealSetsToSave.push({
+                ...set,
+                recipes: recipeIds
+            });
+        }
+
+        // 4. Seed MealSets with references
+        const insertedMealSets = await MealSet.insertMany(mealSetsToSave);
+
+        // 5. Seed Users & Orders
         const insertedUsers = await User.insertMany(sampleUsers);
         const insertedOrders = await Order.insertMany(sampleOrders);
 
@@ -287,6 +389,7 @@ export async function GET() {
             message: 'Database Seeded Successfully! 🌱',
             data: {
                 ingredients: insertedIngredients.length,
+                recipes: totalRecipes,
                 mealSets: insertedMealSets.length,
                 users: insertedUsers.length,
                 orders: insertedOrders.length,
@@ -294,6 +397,7 @@ export async function GET() {
         });
 
     } catch (error: any) {
+        console.error('Seed Error:', error);
         return NextResponse.json(
             { error: 'Failed to seed database', details: error.message },
             { status: 500 }

@@ -23,6 +23,8 @@ const OrderSchema = new mongoose.Schema({
     },
     totalPrice: { type: Number, required: true },
     plan: { type: String, enum: ['weekly', 'monthly'], required: true },
+    boxSize: { type: String, enum: ['M', 'L', 'XL'], default: 'M' },
+    sizeMultiplier: { type: Number, default: 1.0 },
     address: { type: String, required: true },
     deliveryDate: { type: String, required: true },
     box: { type: BoxSchema, required: true }

@@ -85,7 +85,11 @@ export default function OnboardingPage() {
                 const storedProfile = JSON.parse(localStorage.getItem('ayuraProfile') || '{}');
                 localStorage.setItem('ayuraProfile', JSON.stringify({
                     ...storedProfile,
-                    isProfileComplete: true
+                    isProfileComplete: true,
+                    age: Number(age),
+                    weight: Number(weight),
+                    height: Number(height),
+                    gender: gender,
                 }));
 
                 window.dispatchEvent(new Event('auth-change'));

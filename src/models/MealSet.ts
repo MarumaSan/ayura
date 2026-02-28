@@ -1,28 +1,5 @@
 import mongoose from 'mongoose';
 
-// Ingredient portion used in a recipe
-const RecipeIngredientSchema = new mongoose.Schema({
-    ingredientId: { type: String, required: true },
-    gramsUsed: { type: Number, required: true },
-    note: { type: String, default: '' },
-});
-
-// A full recipe / recommended menu — "MealSet" side (สูตรอาหาร)
-const RecipeSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    image: { type: String, default: '🍽️' },
-    mealType: {
-        type: String,
-        required: true,
-        enum: ['เช้า', 'กลางวัน', 'เย็น', 'ว่าง'],
-    },
-    cookTime: { type: Number, default: 20 },      // นาที
-    servings: { type: Number, default: 1 },
-    calories: { type: Number, default: 0 },
-    ingredients: [RecipeIngredientSchema],
-    steps: [{ type: String }],
-});
-
 // Ingredient in the box per week — "BoxSet" side (วัตถุดิบในกล่อง)
 const BoxIngredientSchema = new mongoose.Schema({
     ingredientId: { type: String, required: true },
@@ -45,11 +22,12 @@ const MealSetSchema = new mongoose.Schema({
     description: { type: String, default: '' },
     image: { type: String, default: '📦' },
     tag: { type: String, default: '' },          // e.g. "ยอดนิยม"
+    targetBmi: { type: String, enum: ['underweight', 'normal', 'overweight'], default: 'normal' },
     priceWeekly: { type: Number, required: true },
     priceMonthly: { type: Number, required: true },
     avgNutrition: { type: AvgNutritionSchema, default: () => ({}) },  // สารอาหารเฉลี่ยต่อวัน
     boxIngredients: [BoxIngredientSchema],
-    recipes: [RecipeSchema],
+    recipes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Recipe' }],
     isActive: { type: Boolean, default: true },
 }, { timestamps: true });
 

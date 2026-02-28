@@ -3,8 +3,8 @@ import Link from 'next/link';
 const features = [
   {
     icon: '🤖',
-    title: 'AI แนะนำสุขภาพ',
-    description: 'ระบบ AI วิเคราะห์ธาตุเจ้าเรือนและเลือกวัตถุดิบที่เหมาะกับคุณ',
+    title: 'Algorithm แนะนำสุขภาพ',
+    description: 'ระบบ Algorithm วิเคราะห์ข้อมูลสุขภาพและเลือกวัตถุดิบที่เหมาะกับคุณ',
   },
   {
     icon: '🌿',
@@ -12,9 +12,9 @@ const features = [
     description: 'วัตถุดิบออร์แกนิกจากฟาร์มตัวอย่างและศูนย์ศิลปาชีพทั่วประเทศ',
   },
   {
-    icon: '⏳',
-    title: 'ลดอายุชีวภาพ',
-    description: 'ระบบ Gamification สะสมแต้มสุขภาพ ยิ่งกินดี อายุชีวภาพยิ่งลด',
+    icon: '⭐',
+    title: 'แต้มสะสมสุขภาพ',
+    description: 'สะสมแต้มทุกครั้งที่สั่งกล่อง แล้วแลกรับสิทธิประโยชน์พิเศษ เช่น ส่วนลดค่าส่ง หรือของพิเศษจากชุมชน',
   },
   {
     icon: '♻️',
@@ -28,13 +28,13 @@ const steps = [
     number: '01',
     icon: '📝',
     title: 'ประเมินสุขภาพ',
-    description: 'ทำแบบทดสอบธาตุเจ้าเรือน บอกเป้าหมายสุขภาพ เพียง 3 นาที',
+    description: 'กรอกข้อมูลสุขภาพและบอกเป้าหมายสุขภาพ เพียง 1 นาที',
   },
   {
     number: '02',
     icon: '🧠',
-    title: 'AI จัดกล่องให้',
-    description: 'ระบบ AI เลือกวัตถุดิบสดจากชุมชนที่เหมาะกับธาตุและร่างกายคุณ',
+    title: 'Algorithm จัดกล่องให้',
+    description: 'ระบบ Algorithm เลือกวัตถุดิบสดจากชุมชนที่เหมาะกับคุณ',
   },
   {
     number: '03',
@@ -47,7 +47,7 @@ const steps = [
 const stats = [
   { value: '4+', label: 'ชุมชนผู้ผลิต' },
   { value: '12+', label: 'วัตถุดิบออร์แกนิก' },
-  { value: '95%', label: 'ความแม่นยำ AI' },
+  { value: '98%', label: 'สดสะอาดจากฟาร์ม' },
   { value: '0', label: 'ของเหลือทิ้ง' },
 ];
 
@@ -79,16 +79,15 @@ export default function Home() {
               </h1>
 
               <p className="text-lg text-white/80 mb-8 max-w-lg leading-relaxed">
-                AI วิเคราะห์ธาตุเจ้าเรือนของคุณ จับคู่กับวัตถุดิบสุขภาพและสมุนไพรจากชุมชนทั่วประเทศ
-                ส่งตรงถึงบ้านคุณ
+                จับคู่กับวัตถุดิบสุขภาพและสมุนไพรจากแหล่งผลิตในชุมชนทั่วประเทศที่พร้อมจัดส่งถึงมือคุณ
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link href="/login" className="btn-primary text-base sm:text-lg !py-3 sm:!py-4 !px-6 sm:!px-8 w-full sm:w-auto text-center shadow-lg hover:-translate-y-1">
                   เข้าสู่ระบบเลย 🚀
                 </Link>
-                <Link href="/dashboard" className="btn-outline !border-white/30 !text-white hover:!bg-white/10 text-base !py-4 !px-8 justify-center">
-                  ดูตัวอย่างกล่อง
+                <Link href="/meal-plan" className="btn-outline !border-white/30 !text-white hover:!bg-white/10 text-base !py-4 !px-8 justify-center">
+                  ดูตัวอย่างเซ็ตอาหาร
                 </Link>
               </div>
             </div>
@@ -112,8 +111,8 @@ export default function Home() {
                     ))}
                   </div>
                   <div className="mt-6 text-sm text-white/70">
-                    จับคู่ด้วย AI • คะแนนความเหมาะสม{' '}
-                    <span className="text-[var(--color-secondary-light)] font-bold">92%</span>
+                    จับคู่ด้วยกับอาหารที่เหมาะกับคุณ{' '}
+                    <span className="text-[var(--color-secondary-light)] font-bold">🌸</span>
                   </div>
                 </div>
 
@@ -226,10 +225,10 @@ export default function Home() {
             พร้อมเริ่มดูแลสุขภาพแล้วหรือยัง?
           </h2>
           <p className="text-lg text-white/80 mb-8 max-w-xl mx-auto">
-            ทำแบบทดสอบธาตุเจ้าเรือนเพียง 3 นาที แล้วให้ AI เลือกกล่องสุขภาพที่เหมาะกับคุณ
+            กรอกข้อมูลสุขภาพเพียง 1 นาที แล้วให้ Algorithm เลือกกล่องสุขภาพที่เหมาะกับคุณ
           </p>
-          <Link href="/assessment" className="btn-secondary text-lg !py-4 !px-10">
-            เริ่มประเมินสุขภาพเลย 🚀
+          <Link href="/login" className="btn-secondary text-lg !py-4 !px-10">
+            เข้าสู่ระบบเลย 🚀
           </Link>
         </div>
       </section>

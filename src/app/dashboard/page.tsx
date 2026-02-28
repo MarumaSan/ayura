@@ -10,6 +10,7 @@ export default function DashboardPage() {
     const [hasMealPlan, setHasMealPlan] = useState<boolean | null>(null);
     const [mealPlanStatus, setMealPlanStatus] = useState<any>(null);
     const [activeMealSet, setActiveMealSet] = useState<any>(null);
+    const [ingredientsMap, setIngredientsMap] = useState<Record<string, any>>({});
 
     useEffect(() => {
         const loadRealProfile = async () => {
@@ -51,12 +52,27 @@ export default function DashboardPage() {
                     setProfile({ name: sessionData.name || 'ผู้ใช้', age: 30, gender: 'ไม่ระบุ', weight: 60, height: 165, healthGoals: ['รักษาสุขภาพ'] });
                     setHasMealPlan(false);
                 }
-            } else {
-                setProfile({ name: 'ผู้ใช้ตัวอย่าง (ยังไม่เข้าระบบ)', age: 30, gender: 'ชาย', weight: 70, height: 170, healthGoals: ['ลดน้ำหนัก', 'เพิ่มภูมิคุ้มกัน'] });
-                setHasMealPlan(false);
             }
         };
+
+        const loadIngredients = async () => {
+            try {
+                const res = await fetch('/api/ingredients');
+                if (res.ok) {
+                    const data = await res.json();
+                    const map: Record<string, any> = {};
+                    data.data.forEach((ing: any) => {
+                        map[ing.id] = ing;
+                    });
+                    setIngredientsMap(map);
+                }
+            } catch (err) {
+                console.error('Failed to fetch ingredients', err);
+            }
+        };
+
         loadRealProfile();
+        loadIngredients();
     }, []);
 
     if (!profile) {
@@ -248,8 +264,8 @@ export default function DashboardPage() {
                                     <button
                                         onClick={() => setActiveTab('box')}
                                         className={`flex-1 py-3 px-4 rounded-lg font-medium text-sm transition-all ${activeTab === 'box'
-                                                ? 'bg-[var(--color-primary)] text-white shadow-md'
-                                                : 'text-[var(--color-text-light)] hover:bg-gray-50'
+                                            ? 'bg-[var(--color-primary)] text-white shadow-md'
+                                            : 'text-[var(--color-text-light)] hover:bg-gray-50'
                                             }`}
                                     >
                                         📦 วัตถุดิบในกล่อง
@@ -257,8 +273,8 @@ export default function DashboardPage() {
                                     <button
                                         onClick={() => setActiveTab('meals')}
                                         className={`flex-1 py-3 px-4 rounded-lg font-medium text-sm transition-all ${activeTab === 'meals'
-                                                ? 'bg-[var(--color-primary)] text-white shadow-md'
-                                                : 'text-[var(--color-text-light)] hover:bg-gray-50'
+                                            ? 'bg-[var(--color-primary)] text-white shadow-md'
+                                            : 'text-[var(--color-text-light)] hover:bg-gray-50'
                                             }`}
                                     >
                                         🍽️ เมนูแนะนำ
@@ -280,8 +296,11 @@ export default function DashboardPage() {
                                                     className="glass-card p-4 flex items-center gap-4 hover:shadow-sm transition-all"
                                                     style={{ animationDelay: `${i * 50}ms` }}
                                                 >
+                                                    <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-2xl flex-shrink-0">
+                                                        {ingredientsMap[item.ingredientId]?.image || '📦'}
+                                                    </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="font-semibold text-sm">{item.ingredientId}</p>
+                                                        <p className="font-semibold text-sm">{ingredientsMap[item.ingredientId]?.name || item.ingredientId}</p>
                                                         <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
                                                             {item.gramsPerWeek}g / สัปดาห์
                                                         </p>
@@ -344,8 +363,9 @@ export default function DashboardPage() {
                                                                 <div className="space-y-2">
                                                                     {recipe.ingredients.map((ing: any, j: number) => (
                                                                         <div key={j} className="flex items-center justify-between text-sm bg-white rounded-lg px-3 py-2">
-                                                                            <span className="text-[var(--color-text-light)]">
-                                                                                {ing.ingredientId}
+                                                                            <span className="text-[var(--color-text-light)] flex items-center gap-2">
+                                                                                <span className="text-base">{ingredientsMap[ing.ingredientId]?.image || '🔸'}</span>
+                                                                                {ingredientsMap[ing.ingredientId]?.name || ing.ingredientId}
                                                                                 {ing.note && <span className="text-[var(--color-text-muted)] text-xs ml-1">({ing.note})</span>}
                                                                             </span>
                                                                             <span className="font-semibold text-[var(--color-primary)]">{ing.gramsUsed}g</span>
@@ -384,7 +404,7 @@ export default function DashboardPage() {
                                 {hasMealPlan ? 'เปลี่ยนแผนอาหาร 🔄' : 'เลือกแผนอาหาร 🍽️'}
                             </Link>
                             <Link href="/bio-age" className="btn-outline flex-1 justify-center !py-3 text-sm">
-                                แต้มสุขภาพ ⭐
+                                แต้มสะสม ⭐
                             </Link>
                         </div>
                     </div>

@@ -6,9 +6,9 @@ import { useState, useEffect } from 'react';
 const navLinks = [
     { href: '/', label: 'หน้าแรก', public: true },
     { href: '/dashboard', label: 'กล่องสุขภาพ', public: false },
-    { href: '/meal-plan', label: 'แผนอาหาร', public: false },
-    { href: '/bio-age', label: 'แต้มสุขภาพ', public: false },
-    { href: '/admin', label: 'สำหรับชุมชน', public: false, adminOnly: true },
+    { href: '/meal-plan', label: 'เซ็ตอาหาร', public: false },
+    { href: '/reword-points', label: 'แต้มสะสม', public: false },
+    { href: '/admin', label: 'Admin Menu', public: false, adminOnly: true },
 ];
 
 export default function Navbar() {
@@ -135,31 +135,40 @@ export default function Navbar() {
                                                 <p className="text-sm text-gray-500">ยินดีต้อนรับ</p>
                                                 <p className="text-sm font-bold text-[var(--color-primary-dark)] truncate">{userName}</p>
                                             </div>
-                                            <div className="py-1">
+                                            <div className="py-2">
+                                                <div className="px-4 py-1.5 flex items-center gap-2">
+                                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">ข้อมูลสุขภาพ</span>
+                                                </div>
                                                 <Link
                                                     href="/dashboard"
                                                     onClick={() => setIsDropdownOpen(false)}
-                                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[var(--color-primary)] transition-colors"
+                                                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-[var(--color-primary)] transition-all"
                                                 >
-                                                    📊 ข้อมูลส่วนตัว
+                                                    <span className="text-lg">📊</span>
+                                                    <span>ข้อมูลส่วนตัว</span>
                                                 </Link>
                                                 <Link
-                                                    href="/bio-age"
+                                                    href="/reword-points"
                                                     onClick={() => setIsDropdownOpen(false)}
-                                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[var(--color-primary)] transition-colors"
+                                                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-[var(--color-primary)] transition-all"
                                                 >
-                                                    🌟 แต้มสุขภาพ
+                                                    <span className="text-lg">🌟</span>
+                                                    <span>แต้มสะสม</span>
                                                 </Link>
                                             </div>
-                                            <div className="border-t border-gray-100 py-1">
+                                            <div className="border-t border-gray-100 py-2">
+                                                <div className="px-4 py-1.5 flex items-center gap-2">
+                                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">การจัดการ</span>
+                                                </div>
                                                 <button
                                                     onClick={() => {
                                                         setIsDropdownOpen(false);
                                                         handleLogout();
                                                     }}
-                                                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-all"
                                                 >
-                                                    🚪 ออกจากระบบ
+                                                    <span className="text-lg">🚪</span>
+                                                    <span>ออกจากระบบ</span>
                                                 </button>
                                             </div>
                                         </div>
@@ -227,26 +236,40 @@ export default function Navbar() {
                                     <p className="text-sm font-bold text-[var(--color-primary-dark)] truncate">{userName}</p>
                                 </div>
                             </div>
-                            <Link
-                                href="/dashboard"
-                                onClick={() => setIsOpen(false)}
-                                className="block px-4 py-3 rounded-lg text-sm font-medium text-gray-700 bg-gray-50 hover:bg-[var(--color-primary)]/10 transition-colors"
-                            >
-                                📊 ข้อมูลส่วนตัว
-                            </Link>
-                            <Link
-                                href="/bio-age"
-                                onClick={() => setIsOpen(false)}
-                                className="block px-4 py-3 rounded-lg text-sm font-medium text-gray-700 bg-gray-50 hover:bg-[var(--color-primary)]/10 transition-colors"
-                            >
-                                🌟 แต้มสุขภาพ
-                            </Link>
-                            <button
-                                onClick={() => { setIsOpen(false); handleLogout(); }}
-                                className="block w-full text-center px-4 py-3 rounded-lg text-sm font-medium text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 mt-3"
-                            >
-                                ออกจากระบบ
-                            </button>
+                            <div className="space-y-1">
+                                <div className="px-4 py-1.5">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">ข้อมูลสุขภาพ</span>
+                                </div>
+                                <Link
+                                    href="/dashboard"
+                                    onClick={() => setIsOpen(false)}
+                                    className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-700 bg-white/50 hover:bg-[var(--color-primary)]/10 transition-colors border border-gray-100"
+                                >
+                                    <span className="text-lg">📊</span>
+                                    <span>ข้อมูลส่วนตัว</span>
+                                </Link>
+                                <Link
+                                    href="/bio-age"
+                                    onClick={() => setIsOpen(false)}
+                                    className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-700 bg-white/50 hover:bg-[var(--color-primary)]/10 transition-colors border border-gray-100"
+                                >
+                                    <span className="text-lg">🌟</span>
+                                    <span>แต้มสะสม</span>
+                                </Link>
+                            </div>
+
+                            <div className="pt-2">
+                                <div className="px-4 py-1.5">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">การจัดการ</span>
+                                </div>
+                                <button
+                                    onClick={() => { setIsOpen(false); handleLogout(); }}
+                                    className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-bold text-red-600 border border-red-100 bg-red-50/50 hover:bg-red-100 transition-all"
+                                >
+                                    <span className="text-lg">🚪</span>
+                                    <span>ออกจากระบบ</span>
+                                </button>
+                            </div>
                         </div>
                     ) : (
                         <Link

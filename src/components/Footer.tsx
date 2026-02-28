@@ -30,7 +30,7 @@ export default function Footer() {
                                 { href: '/', label: 'หน้าแรก' },
                                 { href: '/login', label: 'เข้าสู่ระบบ / สมัครสมาชิก' },
                                 { href: '/dashboard', label: 'กล่องสุขภาพ' },
-                                { href: '/bio-age', label: 'แต้มสุขภาพ' },
+                                { href: '/bio-age', label: 'แต้มสะสม' },
                             ].map((link) => (
                                 <li key={link.href}>
                                     <Link

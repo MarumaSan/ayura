@@ -9,7 +9,7 @@ export async function GET(
     try {
         await connectToDatabase();
         const { id } = await params;
-        const mealSet = await MealSet.findOne({ id });
+        const mealSet = await MealSet.findOne({ id }).populate('recipes');
 
 
         if (!mealSet) {

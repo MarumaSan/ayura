@@ -18,8 +18,8 @@ const notoSansThai = Noto_Sans_Thai({
 export const metadata: Metadata = {
   title: "Ayura อายุระ | กล่องสุขภาพจากธรรมชาติ",
   description:
-    "ระบบ AI จับคู่วัตถุดิบสุขภาพและสมุนไพรจากชุมชน จัดส่งเป็นกล่องสุขภาพรายสัปดาห์",
-  keywords: ["สุขภาพ", "สมุนไพร", "ออร์แกนิก", "AI", "subscription box", "อายุระ"],
+    "ระบบจัดส่งวัตถุดิบสุขภาพและสมุนไพรจากชุมชน จัดส่งเป็นกล่องสุขภาพรายสัปดาห์",
+  keywords: ["สุขภาพ", "สมุนไพร", "ออร์แกนิก", "subscription box", "อายุระ"],
 };
 
 export default function RootLayout({

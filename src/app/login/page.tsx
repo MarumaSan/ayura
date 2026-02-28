@@ -33,9 +33,14 @@ export default function LoginPage() {
                     localStorage.setItem('ayuraProfile', JSON.stringify({
                         userId: data.user.id,
                         name: data.user.name,
+                        email: data.user.email,
                         points: data.user.points,
                         isProfileComplete: data.user.isProfileComplete,
-                        role: data.user.role
+                        role: data.user.role,
+                        weight: data.user.weight,
+                        height: data.user.height,
+                        age: data.user.age,
+                        gender: data.user.gender
                     }));
 
                     window.dispatchEvent(new Event('auth-change'));
