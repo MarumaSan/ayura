@@ -16,16 +16,21 @@ export async function GET(request: Request) {
         // Find the most recent active order that belongs to this user
         const activeOrder = await Order.findOne({
             userId,
-            status: { $in: ['รอจัดส่ง', 'กำลังจัดเตรียม'] }
+            status: { $in: ['รออนุมัติ', 'รอจัดส่ง', 'กำลังจัดเตรียม', 'จัดส่งแล้ว'] }
         }).sort({ createdAt: -1 });
 
         if (activeOrder) {
+            const isApproved = activeOrder.status !== 'รออนุมัติ';
             return NextResponse.json({
                 hasMealPlan: true,
-                mealSetId: activeOrder.mealSetId,   // Include mealSetId for dashboard to fetch meals
+                isApproved,
+                mealSetId: activeOrder.mealSetId,
                 plan: activeOrder.plan,
                 status: activeOrder.status,
-                deliveryDate: activeOrder.deliveryDate
+                deliveryDate: activeOrder.deliveryDate,
+                orderDate: activeOrder.createdAt,
+                boxSize: activeOrder.boxSize || 'M',
+                sizeMultiplier: activeOrder.sizeMultiplier || 1.0,
             });
         } else {
             return NextResponse.json({ hasMealPlan: false });

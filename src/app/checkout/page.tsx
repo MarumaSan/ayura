@@ -19,6 +19,10 @@ export default function CheckoutPage() {
     const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
+    const [paymentMethod, setPaymentMethod] = useState<'PROMPTPAY' | 'WALLET'>('PROMPTPAY');
+    const [showQR, setShowQR] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+
     useEffect(() => {
         const storedProfile = localStorage.getItem('ayuraProfile');
         if (storedProfile) {
@@ -82,8 +86,73 @@ export default function CheckoutPage() {
     // To keep UI simple, let's just show Subtotal = finalPrice - deliveryFee
     // The previous design showed base price and discount separate, but it's cleaner to just show final.
 
-    const handleOrder = () => {
-        setShowSuccess(true);
+    const handleOrder = async () => {
+        setIsProcessing(true);
+
+        try {
+            const stored = localStorage.getItem('ayuraProfile');
+            if (!stored) return;
+            const sessionData = JSON.parse(stored);
+
+            // Re-verify balance directly with API to avoid localStorage staleness
+            if (paymentMethod === 'WALLET') {
+                const res = await fetch(`/api/user/profile?userId=${sessionData.userId || sessionData.id}`);
+                const data = await res.json();
+                const actualBalance = data.profile?.balance || 0;
+
+                if (actualBalance < (finalPrice + deliveryFee)) {
+                    alert(`ยอดเงินใน Wallet ไม่เพียงพอ (ปัจจุบัน: ฿${actualBalance}) กรุณาเติมเงินเพิ่ม`);
+                    setIsProcessing(false);
+                    return;
+                }
+            }
+
+            if (paymentMethod === 'PROMPTPAY' && !showQR) {
+                setShowQR(true);
+                setIsProcessing(false);
+                return;
+            }
+
+            try {
+                const stored = localStorage.getItem('ayuraProfile');
+                if (!stored) return;
+                const sessionData = JSON.parse(stored);
+
+                const res = await fetch('/api/user/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: sessionData.userId || sessionData.id,
+                        customerName: profileName,
+                        address,
+                        totalPrice: finalPrice + deliveryFee,
+                        mealSetId: mealSet?._id || mealSet?.id,
+                        plan,
+                        boxSize,
+                        sizeMultiplier,
+                        paymentMethod
+                    })
+                });
+
+                if (res.ok) {
+                    const result = await res.json();
+                    console.log('Order created:', result.orderId);
+                    setShowQR(false); // Close QR if open
+                    setShowSuccess(true);
+                } else {
+                    const err = await res.json();
+                    alert(`Failed to create order: ${err.error || 'Unknown error'}`);
+                    console.error('Failed to create order', err);
+                }
+            } catch (err) {
+                console.error('Order error', err);
+            } finally {
+                setIsProcessing(false);
+            }
+        } catch (error) {
+            console.error('Outer logic error', error);
+            setIsProcessing(false);
+        }
     };
 
     if (loading) {
@@ -181,18 +250,21 @@ export default function CheckoutPage() {
                             </h3>
                             <div className="space-y-3">
                                 {[
-                                    { icon: '🏦', label: 'โอนผ่านธนาคาร', sub: 'SCB, KBank, BBL, etc.' },
-                                    { icon: '💳', label: 'บัตรเครดิต/เดบิต', sub: 'Visa, Mastercard' },
-                                    { icon: '📱', label: 'PromptPay', sub: 'สแกน QR Code' },
+                                    { id: 'PROMPTPAY', icon: '📱', label: 'PromptPay', sub: 'สแกน QR Code' },
+                                    { id: 'WALLET', icon: '💰', label: 'เงินในเว็บไซต์ (Wallet)', sub: `ยอดเงินคงเหลือ: ฿${profile?.balance?.toLocaleString() || 0}` },
                                 ].map((method, i) => (
                                     <label
                                         key={i}
-                                        className="flex items-center gap-4 p-4 rounded-xl border-2 border-[var(--color-border)] bg-white cursor-pointer hover:border-[var(--color-primary)]/30 transition-all"
+                                        className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all cursor-pointer ${paymentMethod === method.id
+                                            ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/5'
+                                            : 'border-[var(--color-border)] bg-white hover:border-[var(--color-primary)]/30'
+                                            }`}
                                     >
                                         <input
                                             type="radio"
                                             name="payment"
-                                            defaultChecked={i === 0}
+                                            checked={paymentMethod === method.id}
+                                            onChange={() => setPaymentMethod(method.id as any)}
                                             className="w-4 h-4 accent-[var(--color-primary)]"
                                         />
                                         <span className="text-2xl">{method.icon}</span>
@@ -276,9 +348,10 @@ export default function CheckoutPage() {
 
                             <button
                                 onClick={handleOrder}
-                                className="btn-primary w-full mt-6 justify-center !py-4 text-lg tracking-wide shadow-md hover:shadow-lg transition-all"
+                                className="btn-primary w-full mt-6 justify-center !py-4 text-lg tracking-wide shadow-md hover:shadow-lg transition-all disabled:opacity-50"
+                                disabled={isProcessing}
                             >
-                                ยืนยันคำสั่งซื้อ ✅
+                                {isProcessing ? 'กำลังดำเนินการ...' : 'ยืนยันคำสั่งซื้อ ✅'}
                             </button>
 
                             <p className="text-xs text-[var(--color-text-light)] text-center mt-4 px-2">
@@ -311,6 +384,43 @@ export default function CheckoutPage() {
                             <a href="/dashboard" className="btn-primary w-full justify-center !py-3 shadow-md">
                                 ไปที่แดชบอร์ด
                             </a>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Payment QR Modal */}
+            {showQR && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center">
+                        <div className="bg-blue-900 text-white py-3 rounded-t-xl mx-4 font-bold tracking-wider">
+                            PromptPay
+                        </div>
+                        <div className="bg-white p-4 border-2 border-t-0 border-blue-900 rounded-b-xl mx-4 mb-6 shadow-sm flex flex-col items-center justify-center min-h-[200px]">
+                            <div className="w-40 h-40 bg-gray-200 flex items-center justify-center text-4xl mb-4">
+                                📱
+                            </div>
+                            <div className="text-sm text-gray-500 mb-1">ยอดชำระ</div>
+                            <div className="text-3xl font-bold text-[var(--color-primary)]">฿{finalPrice + deliveryFee}</div>
+                        </div>
+                        <p className="text-sm text-gray-500 mb-6 px-4">
+                            กรุณาสแกน QR Code ด้วยแอพพลิเคชั่นธนาคารของคุณ เพื่อชำระเงิน
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowQR(false)}
+                                className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+                                disabled={isProcessing}
+                            >
+                                ยกเลิก
+                            </button>
+                            <button
+                                onClick={handleOrder}
+                                className="flex-1 py-3 px-4 bg-[var(--color-primary)] text-white rounded-xl font-bold hover:shadow-lg transition-all disabled:opacity-50"
+                                disabled={isProcessing}
+                            >
+                                {isProcessing ? 'กำลังตรวจสอบ...' : 'จำลองการจ่ายเงิน'}
+                            </button>
                         </div>
                     </div>
                 </div>

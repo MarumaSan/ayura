@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 const ingredients = [
     { id: 'i1', name: 'อกไก่ออร์แกนิก', nameEn: 'Organic Chicken Breast', category: 'โปรตีน', image: '🍗', community: 'สหกรณ์การเกษตรดอยคำ', inStock: 150, unit: 'ชิ้น', pricePerUnit: 189 },
@@ -9,32 +9,60 @@ const ingredients = [
     { id: 'i4', name: 'ใบเตย', nameEn: 'Pandan', category: 'สมุนไพร', image: '🍃', community: 'กลุ่มวิสาหกิจชุมชนแม่กลอง', inStock: 180, unit: 'กำ', pricePerUnit: 35 },
     { id: 'i5', name: 'ข้าวกล้อง', nameEn: 'Brown Rice', category: 'ธัญพืช', image: '🌾', community: 'ทุ่งกุลาร้องไห้', inStock: 300, unit: 'กก.', pricePerUnit: 145 },
 ];
-const mockOrders = [
-    { id: 'ORD-001', customerName: 'คุณสมหญิง รักสุขภาพ', status: 'รอจัดส่ง', totalPrice: 890, plan: 'weekly', address: '123/45 ถ.สุขุมวิท', deliveryDate: '15/11/2023', box: { items: [{ ingredient: { id: 'i1', name: 'อกไก่', image: '🍗' } }, { ingredient: { id: 'i2', name: 'ผักเชียงดา', image: '🥬' } }] } },
-    { id: 'ORD-002', customerName: 'คุณสมชาย ใจดี', status: 'กำลังจัดเตรียม', totalPrice: 2400, plan: 'monthly', address: '99/9 ถ.พหลโยธิน', deliveryDate: '15/11/2023', box: { items: [{ ingredient: { id: 'i3', name: 'ขิง', image: '🫚' } }, { ingredient: { id: 'i5', name: 'ข้าวกล้อง', image: '🌾' } }] } },
-    { id: 'ORD-003', customerName: 'คุณมะลิ สวยเสมอ', status: 'จัดส่งแล้ว', totalPrice: 890, plan: 'weekly', address: '44/4 ถ.สีลม', deliveryDate: '14/11/2023', box: { items: [{ ingredient: { id: 'i1', name: 'อกไก่', image: '🍗' } }] } },
-];
-
-const statusFilters = ['ทั้งหมด', 'รอจัดส่ง', 'กำลังจัดเตรียม', 'จัดส่งแล้ว', 'สำเร็จ'];
+const statusFilters = ['ทั้งหมด', 'รออนุมัติ', 'รอจัดส่ง', 'กำลังจัดเตรียม', 'จัดส่งแล้ว', 'จัดส่งสำเร็จ'];
 
 export default function OrdersPage() {
     const [selectedStatus, setSelectedStatus] = useState('ทั้งหมด');
+    const [orders, setOrders] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchOrders = async () => {
+            try {
+                const res = await fetch('/api/admin/orders');
+                const json = await res.json();
+                if (json.success) {
+                    setOrders(json.data);
+                }
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchOrders();
+    }, []);
+
+    const updateOrderStatus = async (orderId: string, newStatus: string) => {
+        try {
+            const res = await fetch(`/api/admin/orders/${orderId}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+            });
+            if (res.ok) {
+                setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+            }
+        } catch (err) {
+            console.error('Failed to update status', err);
+        }
+    };
 
     const filteredOrders =
         selectedStatus === 'ทั้งหมด'
-            ? mockOrders
-            : mockOrders.filter((o) => o.status === selectedStatus);
+            ? orders
+            : orders.filter((o) => o.status === selectedStatus);
 
-    const totalBoxes = mockOrders.length;
-    const totalRevenue = mockOrders.reduce((sum, o) => sum + o.totalPrice, 0);
+    const totalBoxes = orders.length;
+    const totalRevenue = orders.reduce((sum, o) => sum + o.totalPrice, 0);
 
     // Calculate ingredients needed for pending orders
-    const pendingOrders = mockOrders.filter(
+    const pendingOrders = orders.filter(
         (o) => o.status === 'รอจัดส่ง' || o.status === 'กำลังจัดเตรียม'
     );
     const ingredientNeeded: Record<string, { name: string; count: number; image: string }> = {};
     pendingOrders.forEach((order) => {
-        order.box.items.map(item => item.ingredient).forEach((item) => {
+        (order.box?.items || []).map((item: any) => item.ingredient).filter(Boolean).forEach((item: any) => {
             if (ingredientNeeded[item.id]) {
                 ingredientNeeded[item.id].count++;
             } else {
@@ -45,7 +73,7 @@ export default function OrdersPage() {
 
     // Zero waste calculation
     const totalStockUsed = pendingOrders.reduce(
-        (sum: number, o: any) => sum + o.box.items.map((item: any) => item.ingredient).length,
+        (sum: number, o: any) => sum + (o.box?.items || []).map((item: any) => item.ingredient).filter(Boolean).length,
         0
     );
     const totalStock = ingredients.reduce((sum: number, i: any) => sum + i.inStock, 0);
@@ -127,7 +155,7 @@ export default function OrdersPage() {
                                     {status}
                                     {status !== 'ทั้งหมด' && (
                                         <span className="ml-1 text-xs opacity-70">
-                                            ({mockOrders.filter((o) => o.status === status).length})
+                                            ({orders.filter((o) => o.status === status).length})
                                         </span>
                                     )}
                                 </button>
@@ -136,7 +164,9 @@ export default function OrdersPage() {
 
                         {/* Orders List */}
                         <div className="space-y-3 animate-fade-in delay-300">
-                            {filteredOrders.map((order) => (
+                            {loading ? (
+                                <div className="text-center py-8 text-[var(--color-text-light)]">กำลังโหลดข้อมูล...</div>
+                            ) : filteredOrders.map((order) => (
                                 <div key={order.id} className="glass-card p-5 hover-lift transition-all">
                                     <div className="flex items-start justify-between mb-3">
                                         <div>
@@ -170,7 +200,7 @@ export default function OrdersPage() {
                                     </div>
 
                                     <div className="flex items-center gap-2 mb-3">
-                                        {order.box.items.map(item => item.ingredient).map((item) => (
+                                        {(order.box?.items || []).map((item: any) => item.ingredient).filter(Boolean).map((item: any) => (
                                             <div
                                                 key={item.id}
                                                 className="w-8 h-8 rounded-lg bg-[var(--color-bg-section)] flex items-center justify-center text-lg"
@@ -180,13 +210,37 @@ export default function OrdersPage() {
                                             </div>
                                         ))}
                                         <span className="text-xs text-[var(--color-text-muted)] ml-1">
-                                            {order.box.items.map(item => item.ingredient).length} ชิ้น
+                                            {(order.box?.items || []).map((item: any) => item.ingredient).filter(Boolean).length} ชิ้น
                                         </span>
                                     </div>
 
-                                    <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
-                                        <span>📍 {order.address.slice(0, 40)}...</span>
-                                        <span>📅 {order.deliveryDate}</span>
+                                    <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)] mt-2">
+                                        <span>📍 {order.address?.slice(0, 40) || 'ไม่ระบุ'}...</span>
+                                        <span>📅 {order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString('th-TH') : 'ไม่ระบุ'}</span>
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-[var(--color-border)]">
+                                        <div className="text-xs text-[var(--color-text-light)]">อัปเดตสถานะ:</div>
+                                        {order.status === 'รออนุมัติ' && (
+                                            <button onClick={() => updateOrderStatus(order.id, 'รอจัดส่ง')} className="text-xs bg-green-100 text-green-700 px-3 py-1.5 rounded-lg hover:bg-green-200 transition-colors">
+                                                ✅ อนุมัติออเดอร์ (รอจัดส่ง)
+                                            </button>
+                                        )}
+                                        {order.status === 'รอจัดส่ง' && (
+                                            <button onClick={() => updateOrderStatus(order.id, 'กำลังจัดเตรียม')} className="text-xs bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-lg hover:bg-yellow-200 transition-colors">
+                                                📦 กำลังจัดเตรียม
+                                            </button>
+                                        )}
+                                        {order.status === 'กำลังจัดเตรียม' && (
+                                            <button onClick={() => updateOrderStatus(order.id, 'จัดส่งแล้ว')} className="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-200 transition-colors">
+                                                🚚 จัดส่งแล้ว
+                                            </button>
+                                        )}
+                                        {order.status === 'จัดส่งแล้ว' && (
+                                            <button onClick={() => updateOrderStatus(order.id, 'จัดส่งสำเร็จ')} className="text-xs bg-[var(--color-success)]/10 text-[var(--color-success)] px-3 py-1.5 rounded-lg hover:bg-[var(--color-success)]/20 transition-colors">
+                                                🏁 จัดส่งสำเร็จ
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             ))}

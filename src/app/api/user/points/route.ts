@@ -24,7 +24,8 @@ export async function GET(request: Request) {
         }
 
         // Fetch recent orders for this user
-        const recentOrders = await Order.find({ userId: user.id || user._id })
+        const orderQueryUserId = user.id ? user.id : user._id.toString();
+        const recentOrders = await Order.find({ userId: orderQueryUserId })
             .sort({ createdAt: -1 })
             .limit(10); // get last 10 activities
 

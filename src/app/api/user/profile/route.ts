@@ -13,7 +13,11 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
         }
 
-        const user = await User.findOne({ id: userId });
+        const query = userId.length === 24
+            ? { $or: [{ id: userId }, { _id: userId }] }
+            : { id: userId };
+
+        const user = await User.findOne(query);
 
         if (!user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -26,14 +30,14 @@ export async function GET(request: Request) {
                 name: user.name,
                 email: user.email,
                 age: user.age,
-                realAge: user.realAge,
-                bioAge: user.bioAge,
                 weight: user.weight,
                 height: user.height,
                 healthGoals: user.healthGoals,
                 points: user.points,
                 streak: user.streak,
-                isProfileComplete: user.isProfileComplete
+                balance: user.balance || 0,
+                isProfileComplete: user.isProfileComplete,
+                role: user.role || 'user'
             }
         });
 

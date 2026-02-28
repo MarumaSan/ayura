@@ -32,16 +32,15 @@ export async function POST(request: Request) {
         return NextResponse.json({
             message: 'Login successful',
             user: {
-                id: user.id,
+                id: user.id || user._id.toString(),
                 name: user.name,
                 email: user.email,
                 points: user.points,
                 isProfileComplete: isComplete,
-                role: user.role || 'user',
-                weight: user.weight,
                 height: user.height,
                 age: user.age,
-                gender: user.gender
+                gender: user.gender,
+                balance: user.balance || 0
             }
         });
 
