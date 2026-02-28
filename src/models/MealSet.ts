@@ -22,8 +22,6 @@ const MealSetSchema = new mongoose.Schema({
     name: { type: String, required: true },       // e.g. "เซ็ตลดน้ำหนัก"
     description: { type: String, default: '' },
     image: { type: String, default: '📦' },
-    tag: { type: String, default: '' },          // e.g. "ยอดนิยม"
-    targetBmi: { type: String, enum: ['underweight', 'normal', 'overweight'], default: 'normal' },
     priceWeekly: { type: Number, required: true },
     priceMonthly: { type: Number, required: true },
     avgNutrition: { type: AvgNutritionSchema, default: () => ({}) },  // สารอาหารเฉลี่ยต่อวัน

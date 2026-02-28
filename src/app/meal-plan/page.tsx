@@ -3,24 +3,39 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-    calcBMI, getBmiCategory, calcTDEE, recommendSize,
+    calcBMI, getBmiCategory, calcTDEE, recommendSize, recommendSizeWithReason,
     SIZE_MULTIPLIERS, SIZE_LABELS,
     type BmiCategory, type BoxSize
 } from '@/lib/bmiCalculator';
 
 type AvgNutrition = { calories: number; protein: number; carbs: number; fat: number };
 
+type ScoreBreakdown = { bmiMatch: number; calorieFit: number; macroBalance: number; goalAlignment: number };
+
 type MealSet = {
     id: string;
     name: string;
     description: string;
     image: string;
-    tag: string;
-    targetBmi: BmiCategory;
     priceWeekly: number;
     priceMonthly: number;
     avgNutrition: AvgNutrition;
     boxIngredients: { ingredientId: string; gramsPerWeek: number }[];
+    // Recommendation fields (populated when logged in)
+    score?: number;
+    breakdown?: ScoreBreakdown;
+    reasons?: string[];
+};
+
+type UserTargets = {
+    bmi: number;
+    bmiCategory: string;
+    bmr: number;
+    tdee: number;
+    targetCalories: number;
+    targetProtein: number;
+    targetCarbs: number;
+    targetFat: number;
 };
 
 type UserProfile = {
@@ -37,6 +52,7 @@ export default function MealPlanPage() {
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [mealSets, setMealSets] = useState<MealSet[]>([]);
     const [selectedSet, setSelectedSet] = useState<MealSet | null>(null);
+    const [userTargets, setUserTargets] = useState<UserTargets | null>(null);
     const [boxSize, setBoxSize] = useState<BoxSize>('M');
     const [duration, setDuration] = useState<'weekly' | 'monthly'>('weekly');
     const [loading, setLoading] = useState(true);
@@ -53,9 +69,13 @@ export default function MealPlanPage() {
     const userBmi = userProfile?.weight && userProfile?.height
         ? calcBMI(userProfile.weight, userProfile.height) : null;
     const userBmiCategory = userBmi ? getBmiCategory(userBmi) : null;
-    const userTdee = userProfile?.weight && userProfile?.height && userProfile?.age && userProfile?.gender
-        ? calcTDEE(userProfile.weight, userProfile.height, userProfile.age, userProfile.gender) : null;
+    // Use TDEE from API targets (most accurate) or compute locally as fallback
+    const userTdee = userTargets?.tdee
+        || (userProfile?.weight && userProfile?.height && userProfile?.age && userProfile?.gender
+            ? calcTDEE(userProfile.weight, userProfile.height, userProfile.age, userProfile.gender || 'ชาย')
+            : null);
     const recommendedSize = userTdee ? recommendSize(userTdee) : null;
+    const sizeRecommendation = userTdee ? recommendSizeWithReason(Math.round(userTdee)) : null;
 
     useEffect(() => {
         const profile = localStorage.getItem('ayuraProfile');
@@ -85,10 +105,22 @@ export default function MealPlanPage() {
 
         const fetchMealSets = async () => {
             try {
-                const res = await fetch('/api/meal-sets');
+                // If logged in, use recommendation API for scored results
+                const profileData = localStorage.getItem('ayuraProfile');
+                const uid = profileData ? (JSON.parse(profileData).userId || JSON.parse(profileData).id) : null;
+
+                let res;
+                if (uid) {
+                    res = await fetch(`/api/meal-sets/recommended?userId=${uid}`);
+                }
+                // Fallback to plain meal-sets if not logged in or recommendation fails
+                if (!res || !res.ok) {
+                    res = await fetch('/api/meal-sets');
+                }
                 if (res.ok) {
                     const data = await res.json();
                     setMealSets(data.data);
+                    if (data.targets) setUserTargets(data.targets);
                 }
             } catch (e) {
                 console.error('Failed to fetch meal sets', e);
@@ -342,8 +374,11 @@ export default function MealPlanPage() {
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        {mealSets.map((set) => {
-                                            const isRecommended = userBmiCategory && set.targetBmi === userBmiCategory;
+                                        {mealSets.map((set, idx) => {
+                                            const hasScore = typeof set.score === 'number';
+                                            const isTop = hasScore && idx === 0;
+                                            const isRecommended = hasScore && idx === 0;
+                                            const scoreColor = (set.score || 0) >= 70 ? 'from-green-500 to-emerald-500' : (set.score || 0) >= 40 ? 'from-amber-500 to-yellow-500' : 'from-gray-400 to-gray-500';
                                             return (
                                                 <div
                                                     key={set.id}
@@ -356,14 +391,34 @@ export default function MealPlanPage() {
                                                             <span>✨</span> <span>แนะนำสำหรับคุณ</span>
                                                         </span>
                                                     )}
-                                                    {set.tag && !isRecommended && (
-                                                        <span className="absolute -top-3 left-4 px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] text-white shadow">
-                                                            {set.tag}
-                                                        </span>
+                                                    {/* Recommendation Score Badge */}
+                                                    {hasScore && (
+                                                        <div className="mb-4">
+                                                            <div className="flex items-center justify-between mb-2">
+                                                                <span className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">ความเหมาะสม</span>
+                                                                <span className={`text-sm font-bold bg-gradient-to-r ${scoreColor} bg-clip-text text-transparent`}>{set.score}/100</span>
+                                                            </div>
+                                                            <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                                                                <div
+                                                                    className={`h-full bg-gradient-to-r ${scoreColor} rounded-full transition-all duration-500`}
+                                                                    style={{ width: `${set.score}%` }}
+                                                                />
+                                                            </div>
+                                                        </div>
                                                     )}
+
                                                     <div className="text-5xl mb-4 text-center">{set.image}</div>
                                                     <h3 className="text-lg font-bold text-center text-[var(--color-primary-dark)] mb-2">{set.name}</h3>
-                                                    <p className="text-sm text-[var(--color-text-light)] text-center leading-relaxed mb-5">{set.description}</p>
+                                                    <p className="text-sm text-[var(--color-text-light)] text-center leading-relaxed mb-4">{set.description}</p>
+
+                                                    {/* Reasons from algorithm */}
+                                                    {set.reasons && set.reasons.length > 0 && (
+                                                        <div className="mb-4 space-y-1">
+                                                            {set.reasons.slice(0, 3).map((r, i) => (
+                                                                <p key={i} className="text-[11px] text-[var(--color-text-light)] leading-snug">{r}</p>
+                                                            ))}
+                                                        </div>
+                                                    )}
 
                                                     {set.avgNutrition && (
                                                         <div className="grid grid-cols-2 gap-2 mb-4 text-center">
@@ -468,7 +523,17 @@ export default function MealPlanPage() {
                                                     </div>
                                                 </div>
 
-                                                <p className="text-sm text-[var(--color-text-light)] mb-5 leading-relaxed">{sizeInfo.desc}</p>
+                                                <p className="text-sm text-[var(--color-text-light)] mb-3 leading-relaxed">{sizeInfo.desc}</p>
+
+                                                {/* Algorithm-based reason */}
+                                                {sizeRecommendation && (
+                                                    <p className={`text-xs mb-4 px-3 py-2 rounded-xl leading-snug ${isRec
+                                                        ? 'bg-green-50 text-green-700 border border-green-100'
+                                                        : 'bg-gray-50 text-gray-500 border border-gray-100'
+                                                        }`}>
+                                                        {sizeRecommendation.allReasons[size]}
+                                                    </p>
+                                                )}
 
                                                 <div className="grid grid-cols-2 gap-2 mb-4 text-center">
                                                     <div className="bg-orange-50 rounded-xl p-2 flex flex-col items-center justify-center">

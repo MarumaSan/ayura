@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { calcBMI, getBmiCategory, calcBMR, calcTDEE, calcCalorieTarget, calcMacroTargets } from '@/lib/bmiCalculator';
 
 export default function DashboardPage() {
     const [profile, setProfile] = useState<any>(null);
@@ -109,15 +110,20 @@ export default function DashboardPage() {
         );
     }
 
-    const heightM = profile.height / 100;
-    const bmiValue = Math.round((profile.weight / (heightM * heightM)) * 10) / 10;
+    const bmiValue = calcBMI(profile.weight, profile.height);
+    const bmiCat = getBmiCategory(bmiValue);
     let bmiLabel = '';
-    if (bmiValue < 18.5) bmiLabel = 'น้ำหนักต่ำกว่าเกณฑ์';
-    else if (bmiValue < 23) bmiLabel = 'น้ำหนักปกติ';
-    else if (bmiValue < 25) bmiLabel = 'น้ำหนักเกิน';
-    else bmiLabel = 'โรคอ้วน';
+    if (bmiCat === 'underweight') bmiLabel = 'น้ำหนักต่ำกว่าเกณฑ์';
+    else if (bmiCat === 'normal') bmiLabel = 'น้ำหนักปกติ';
+    else bmiLabel = 'น้ำหนักเกิน';
 
-    const bmrResult = { bmr: 1650, tdee: 2557, targetCalories: 2045, targetProtein: 153, targetCarbs: 230, targetFat: 56 };
+    const userGender = profile.gender || 'ชาย';
+    const userGoals: string[] = profile.healthGoals || ['รักษาสุขภาพ'];
+    const bmrVal = Math.round(calcBMR(profile.weight, profile.height, profile.age, userGender));
+    const tdeeVal = calcTDEE(profile.weight, profile.height, profile.age, userGender);
+    const targetCal = calcCalorieTarget(tdeeVal, userGoals);
+    const macroTargets = calcMacroTargets(targetCal, userGoals);
+    const bmrResult = { bmr: bmrVal, tdee: tdeeVal, targetCalories: targetCal, targetProtein: macroTargets.protein, targetCarbs: macroTargets.carbs, targetFat: macroTargets.fat };
 
     const mealTypeLabels: Record<string, { emoji: string; time: string }> = {
         'เช้า': { emoji: '🌅', time: '07:00 - 08:30' },

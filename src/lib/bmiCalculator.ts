@@ -55,3 +55,62 @@ export function recommendSize(tdee: number): BoxSize {
     if (tdee <= 2200) return 'L';
     return 'XL';
 }
+
+/** Returns recommended size + human-readable Thai reason */
+export function recommendSizeWithReason(tdee: number): { size: BoxSize; reason: string; allReasons: Record<BoxSize, string> } {
+    const size = recommendSize(tdee);
+    const allReasons: Record<BoxSize, string> = {
+        M: tdee <= 1800
+            ? `✅ TDEE ${tdee} kcal — เหมาะกับคนทานน้อยหรือร่างกายเล็ก`
+            : `⚠️ ปริมาณอาจน้อยกว่าที่ร่างกายต้องการ (TDEE ${tdee} kcal)`,
+        L: tdee > 1800 && tdee <= 2200
+            ? `✅ TDEE ${tdee} kcal — เหมาะกับคนทานปริมาณปานกลาง`
+            : tdee <= 1800
+                ? `⚠️ ปริมาณอาจมากเกินไปสำหรับ TDEE ${tdee} kcal`
+                : `⚠️ ปริมาณอาจน้อยกว่าที่ร่างกายต้องการ (TDEE ${tdee} kcal)`,
+        XL: tdee > 2200
+            ? `✅ TDEE ${tdee} kcal — เหมาะสำหรับนักกีฬาหรือคนทานเยอะ`
+            : `⚠️ ปริมาณอาจมากเกินไปสำหรับ TDEE ${tdee} kcal`,
+    };
+    return { size, reason: allReasons[size], allReasons };
+}
+
+
+// ────────────────────────────────────────
+// Calorie & Macro Targets (based on health goals)
+// ────────────────────────────────────────
+
+/** Determine a TDEE multiplier based on the user's primary health goals. */
+function goalMultiplier(healthGoals: string[]): number {
+    if (healthGoals.includes('ลดน้ำหนัก')) return 0.80;          // 20% deficit
+    if (healthGoals.includes('สร้างกล้ามเนื้อ')) return 1.10;   // 10% surplus
+    return 1.0;                                                  // maintain
+}
+
+/** Macro split as percentage of calories → { proteinPct, carbsPct, fatPct } */
+function goalMacroSplit(healthGoals: string[]): { proteinPct: number; carbsPct: number; fatPct: number } {
+    if (healthGoals.includes('สร้างกล้ามเนื้อ')) return { proteinPct: 0.35, carbsPct: 0.45, fatPct: 0.20 };
+    if (healthGoals.includes('ลดน้ำหนัก')) return { proteinPct: 0.30, carbsPct: 0.40, fatPct: 0.30 };
+    return { proteinPct: 0.25, carbsPct: 0.50, fatPct: 0.25 };  // balanced
+}
+
+/**
+ * Calculate daily calorie target = TDEE × goal multiplier.
+ * @returns kcal/day (rounded)
+ */
+export function calcCalorieTarget(tdee: number, healthGoals: string[]): number {
+    return Math.round(tdee * goalMultiplier(healthGoals));
+}
+
+/**
+ * Calculate daily macro targets in grams.
+ * protein = 4 kcal/g, carbs = 4 kcal/g, fat = 9 kcal/g
+ */
+export function calcMacroTargets(calorieTarget: number, healthGoals: string[]): { protein: number; carbs: number; fat: number } {
+    const { proteinPct, carbsPct, fatPct } = goalMacroSplit(healthGoals);
+    return {
+        protein: Math.round((calorieTarget * proteinPct) / 4),
+        carbs: Math.round((calorieTarget * carbsPct) / 4),
+        fat: Math.round((calorieTarget * fatPct) / 9),
+    };
+}

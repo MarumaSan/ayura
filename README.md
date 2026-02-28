@@ -69,9 +69,64 @@ src/
 │       ├── orders/           # Public order API
 │       └── wallet/           # Wallet top-up API
 ├── components/               # Navbar, Footer, AdminGuard
-├── lib/                      # MongoDB connection, BMI calculator
+├── lib/                      # MongoDB connection, BMI/TDEE calculator, meal recommender
 └── models/                   # Mongoose schemas
 ```
+
+---
+
+## 🧠 Algorithms & AI Logic
+
+### 1. BMI / BMR / TDEE Calculation (`lib/bmiCalculator.ts`)
+
+| Metric | Formula |
+|--------|---------|
+| **BMI** | `weight(kg) / height(m)²` |
+| **BMR (Men)** | `66.5 + 13.75w + 5.003h − 6.755a` (Harris-Benedict) |
+| **BMR (Women)** | `655.1 + 9.563w + 1.850h − 4.676a` |
+| **TDEE** | `BMR × 1.55` (moderate activity factor) |
+
+### 2. Calorie & Macro Targets (`lib/bmiCalculator.ts`)
+
+Targets are adjusted dynamically based on the user's **health goals** from onboarding:
+
+| Health Goal | TDEE Multiplier | Protein | Carbs | Fat |
+|-------------|-----------------|---------|-------|-----|
+| ลดน้ำหนัก | ×0.80 (deficit) | 30% | 40% | 30% |
+| สร้างกล้ามเนื้อ | ×1.10 (surplus) | 35% | 45% | 20% |
+| รักษาสุขภาพ / อื่นๆ | ×1.00 | 25% | 50% | 25% |
+
+Macro grams: Protein & Carbs = `(cal × pct) / 4`, Fat = `(cal × pct) / 9`
+
+### 3. Meal Set Recommendation Scoring (`lib/mealRecommender.ts`)
+
+Each meal set is scored out of **100 points** across 4 criteria:
+
+| Criteria | Max Score | Logic |
+|----------|-----------|-------|
+| **BMI Match** | 30 | `targetBmi` matches user's BMI category → 30, 1 step away → 10, 2 → 0 |
+| **Calorie Fit** | 30 | % deviation of set calories vs. calorie target: ≤5% → 30, ≤15% → 20, ≤30% → 10 |
+| **Macro Balance** | 20 | Average deviation of protein/carbs/fat vs. targets: ≤10% → 20, ≤25% → 15, ≤40% → 8 |
+| **Goal Alignment** | 20 | Goal-specific checks (e.g. ลดน้ำหนัก → low cal, สร้างกล้ามเนื้อ → high protein) |
+
+Sets are sorted by score, displayed with progress bar + human-readable Thai reasons.
+
+### 4. Box Size Recommendation (`lib/bmiCalculator.ts`)
+
+| TDEE Range | Recommended Size | Multiplier |
+|------------|-----------------|------------|
+| ≤ 1,800 kcal | M (ปกติ) | ×1.0 |
+| 1,801 – 2,200 kcal | L (ใหญ่) | ×1.3 |
+| > 2,200 kcal | XL (พิเศษ) | ×1.6 |
+
+The multiplier scales both the ingredient quantities and the price.
+
+### 5. AI Daily Menu (`api/user/daily-menu`)
+
+- Filters recipes whose ingredients are all available in the user's meal set box
+- Uses a **deterministic date-based seed** (hash of `YYYY-MM-DD + mealType + mealSetId`)
+- Ensures **no repeat** from yesterday's menu
+- Provides separate picks for breakfast (เช้า), lunch (กลางวัน), dinner (เย็น)
 
 ---
 
@@ -100,6 +155,14 @@ Edit `.env.local`:
 MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/<dbname>
 NEXT_PUBLIC_PROMPTPAY_NUMBER=<your-promptpay-number>
 ```
+
+### Seed Database
+
+```bash
+npx tsx scripts/seed-data.ts
+```
+
+This populates 40+ ingredients and 30+ Thai recipes into your database.
 
 ### Run
 

@@ -3,12 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 
-const BMI_OPTIONS = [
-    { value: 'underweight', label: 'น้ำหนักน้อย (Underweight)' },
-    { value: 'normal', label: 'ปกติ (Normal)' },
-    { value: 'overweight', label: 'น้ำหนักเกิน (Overweight)' },
-];
-
 type BoxIngredientRow = {
     ingredientId: string;
     gramsPerWeek: number;
@@ -28,8 +22,6 @@ const EMPTY_FORM = {
     name: '',
     description: '',
     image: '📦',
-    tag: '',
-    targetBmi: 'normal' as 'underweight' | 'normal' | 'overweight',
     priceWeekly: 0,
     priceMonthly: 0,
     isActive: true,
@@ -109,8 +101,6 @@ export default function AdminMealSetsPage() {
             name: item.name || '',
             description: item.description || '',
             image: item.image || '📦',
-            tag: item.tag || '',
-            targetBmi: item.targetBmi || 'normal',
             priceWeekly: item.priceWeekly || 0,
             priceMonthly: item.priceMonthly || 0,
             isActive: item.isActive ?? true,
@@ -249,9 +239,6 @@ export default function AdminMealSetsPage() {
                                                 <div>
                                                     <div className="text-sm font-semibold">{ms.name}</div>
                                                     <div className="text-xs text-[var(--color-text-muted)]">{ms.id}</div>
-                                                    {ms.tag && (
-                                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-primary)]/10 text-[var(--color-primary-dark)] font-medium">{ms.tag}</span>
-                                                    )}
                                                 </div>
                                             </div>
                                         </td>
@@ -360,31 +347,7 @@ export default function AdminMealSetsPage() {
                                 />
                             </div>
 
-                            {/* Row 3 : tag + targetBmi */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Tag (เช่น "ยอดนิยม")</label>
-                                    <input
-                                        type="text"
-                                        value={formData.tag}
-                                        onChange={(e) => setFormData({ ...formData, tag: e.target.value })}
-                                        placeholder="ยอดนิยม"
-                                        className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] text-sm"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">เหมาะสำหรับ BMI</label>
-                                    <select
-                                        value={formData.targetBmi}
-                                        onChange={(e) => setFormData({ ...formData, targetBmi: e.target.value as any })}
-                                        className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] text-sm"
-                                    >
-                                        {BMI_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-
-                            {/* Row 4 : prices */}
+                            {/* Row 3 : prices */}
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-sm font-medium mb-1">ราคา/สัปดาห์ (฿)</label>
