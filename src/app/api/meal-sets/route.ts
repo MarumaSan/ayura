@@ -6,7 +6,7 @@ export async function GET() {
     try {
         await connectToDatabase();
 
-        const mealSets = await MealSet.find({ isActive: true }).populate('recipes').sort({ createdAt: -1 });
+        const mealSets = await MealSet.find({ isActive: true }).sort({ createdAt: -1 }).lean();
 
         return NextResponse.json({ data: mealSets });
     } catch (error: any) {

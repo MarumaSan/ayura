@@ -5,19 +5,19 @@ import Link from 'next/link';
 
 export default function DashboardPage() {
     const [profile, setProfile] = useState<any>(null);
-    const [activeTab, setActiveTab] = useState<'box' | 'meals'>('box');
+    const [activeTab, setActiveTab] = useState<'meals' | 'box'>('meals');
     const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
     const [hasMealPlan, setHasMealPlan] = useState<boolean | null>(null);
     const [mealPlanStatus, setMealPlanStatus] = useState<any>(null);
     const [activeMealSet, setActiveMealSet] = useState<any>(null);
     const [ingredientsMap, setIngredientsMap] = useState<Record<string, any>>({});
+    const [dailyMenu, setDailyMenu] = useState<any>(null);
 
     // Helper to safely parse different date formats (including DD/MM/YYYY from mock data)
     const parseDeliveryDate = (dateStr: string) => {
         if (!dateStr) return null;
         if (dateStr.includes('/')) {
             const parts = dateStr.split('/');
-            // Check if it's DD/MM/YYYY
             if (parts.length === 3 && parts[2].length === 4) {
                 return new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`);
             }
@@ -31,9 +31,10 @@ export default function DashboardPage() {
             const stored = localStorage.getItem('ayuraProfile');
             if (stored) {
                 const sessionData = JSON.parse(stored);
+                const userId = sessionData.userId || sessionData.id;
 
                 try {
-                    const res = await fetch(`/api/user/profile?userId=${sessionData.userId}`);
+                    const res = await fetch(`/api/user/profile?userId=${userId}`);
                     if (res.ok) {
                         const data = await res.json();
                         setProfile(data.profile);
@@ -42,7 +43,7 @@ export default function DashboardPage() {
                     }
 
                     // Check meal plan status
-                    const planRes = await fetch(`/api/user/meal-plan-status?userId=${sessionData.userId}`);
+                    const planRes = await fetch(`/api/user/meal-plan-status?userId=${userId}`);
                     if (planRes.ok) {
                         const planData = await planRes.json();
                         setHasMealPlan(planData.hasMealPlan);
@@ -53,6 +54,14 @@ export default function DashboardPage() {
                                 if (mealSetRes.ok) {
                                     const mealSetData = await mealSetRes.json();
                                     setActiveMealSet(mealSetData.data);
+                                }
+                                // Fetch daily menu
+                                if (planData.isApproved) {
+                                    const menuRes = await fetch(`/api/user/daily-menu?mealSetId=${planData.mealSetId}`);
+                                    if (menuRes.ok) {
+                                        const menuData = await menuRes.json();
+                                        setDailyMenu(menuData.menu);
+                                    }
                                 }
                             }
                         } else {
@@ -117,7 +126,46 @@ export default function DashboardPage() {
         'ว่าง': { emoji: '🍵', time: '15:00 - 16:00' },
     };
 
-    const weeks = mealPlanStatus?.plan === 'monthly' ? 4 : 1;
+    // Determine the current order state
+    const orderStatus = mealPlanStatus?.status;
+    const isPaymentPending = orderStatus === 'รอยืนยันการชำระเงิน';
+    const isPending = orderStatus === 'รออนุมัติ' || isPaymentPending;
+    const isVerified = ['รอจัดส่ง', 'กำลังขนส่ง'].includes(orderStatus);
+    const isDelivered = ['จัดส่งสำเร็จ'].includes(orderStatus);
+
+    // Nutrition Helpers
+    const getRecipeNutrition = (menu: any) => {
+        let cal = 0, pro = 0, car = 0, fat = 0;
+        if (!menu || !menu.ingredients) return { cal: 0, pro: 0, car: 0, fat: 0 };
+        menu.ingredients.forEach((ing: any) => {
+            const item = ingredientsMap[ing.ingredientId];
+            if (item) {
+                const ratio = ing.gramsUsed / 100;
+                cal += item.calories100g * ratio;
+                pro += item.protein100g * ratio;
+                car += item.carbs100g * ratio;
+                fat += item.fat100g * ratio;
+            }
+        });
+        return { cal: Math.round(cal), pro: Math.round(pro), car: Math.round(car), fat: Math.round(fat) };
+    };
+
+    const getDailyNutrition = (dailyMenu: any) => {
+        let tCal = 0, tPro = 0, tCar = 0, tFat = 0;
+        if (!dailyMenu || Object.keys(ingredientsMap).length === 0) return null;
+        ['breakfast', 'lunch', 'dinner'].forEach(k => {
+            if (dailyMenu[k]) {
+                const n = getRecipeNutrition(dailyMenu[k]);
+                tCal += n.cal;
+                tPro += n.pro;
+                tCar += n.car;
+                tFat += n.fat;
+            }
+        });
+        return { cal: tCal, pro: tPro, car: tCar, fat: tFat };
+    };
+
+    const dailyTotalNutrients = getDailyNutrition(dailyMenu);
 
     return (
         <div className="min-h-screen pt-24 pb-16 bg-[var(--color-bg-section)]">
@@ -204,13 +252,16 @@ export default function DashboardPage() {
                             </h4>
                             <div className="space-y-2.5">
                                 {[
-                                    { label: '🔴 โปรตีน', val: bmrResult.targetProtein, unit: 'g' },
-                                    { label: '🟡 คาร์โบไฮเดรต', val: bmrResult.targetCarbs, unit: 'g' },
-                                    { label: '🟢 ไขมัน', val: bmrResult.targetFat, unit: 'g' },
-                                ].map(({ label, val, unit }) => (
-                                    <div key={label} className="flex justify-between text-sm">
-                                        <span>{label}</span>
-                                        <span className="font-semibold">{val}{unit}</span>
+                                    { emoji: '🔴', label: 'โปรตีน', val: bmrResult.targetProtein, unit: 'g' },
+                                    { emoji: '🟡', label: 'คาร์โบไฮเดรต', val: bmrResult.targetCarbs, unit: 'g' },
+                                    { emoji: '🟢', label: 'ไขมัน', val: bmrResult.targetFat, unit: 'g' },
+                                ].map(({ emoji, label, val, unit }) => (
+                                    <div key={label} className="flex justify-between items-center text-sm py-0.5">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-base leading-none">{emoji}</span>
+                                            <span className="leading-none text-[var(--color-text-light)]">{label}</span>
+                                        </div>
+                                        <span className="font-semibold leading-none text-[var(--color-text)]">{val}{unit}</span>
                                     </div>
                                 ))}
                             </div>
@@ -228,7 +279,7 @@ export default function DashboardPage() {
                             </div>
                         )}
 
-                        {/* LOCKED: No active meal plan */}
+                        {/* ══ STATE 1: No active order ══ */}
                         {hasMealPlan === false && (
                             <div className="glass-card p-14 flex flex-col items-center justify-center text-center gap-6">
                                 <div className="w-24 h-24 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-5xl shadow-inner">
@@ -252,8 +303,62 @@ export default function DashboardPage() {
                             </div>
                         )}
 
-                        {/* UNLOCKED: Has active meal plan */}
-                        {hasMealPlan === true && activeMealSet && (
+                        {/* ══ STATE 2: Pending Approval (รออนุมัติ) ══ */}
+                        {hasMealPlan === true && isPending && activeMealSet && (
+                            <div className="space-y-5 animate-fade-in">
+                                {/* Set Info Banner */}
+                                <div className="glass-card p-4 flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--color-primary)]/15 to-[var(--color-secondary)]/15 flex items-center justify-center text-2xl">
+                                        {activeMealSet.image}
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="font-bold text-[var(--color-primary-dark)] text-lg">{activeMealSet.name}</p>
+                                        <div className="flex items-center gap-3 mt-1">
+                                            <span className="text-sm font-medium bg-[var(--color-primary)]/10 text-[var(--color-primary-dark)] px-2 py-0.5 rounded">
+                                                ไซส์ {mealPlanStatus?.boxSize || 'M'}
+                                            </span>
+                                            <span className="text-sm text-[var(--color-text-muted)]">
+                                                {mealPlanStatus?.plan === 'weekly' ? '📅 รายสัปดาห์ (7 วัน)' : '📦 รายเดือน (30 วัน)'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Pending Card */}
+                                <div className="glass-card p-12 flex flex-col items-center justify-center text-center gap-4 bg-[var(--color-primary)]/5 border border-[var(--color-primary)]/20">
+                                    <div className="text-5xl mb-2 animate-pulse">⏳</div>
+                                    <h3 className="font-bold text-xl text-[var(--color-primary-dark)]">
+                                        {isPaymentPending ? 'รอตรวจสอบการชำระเงิน' : 'รอตรวจสอบและอนุมัติ'}
+                                    </h3>
+                                    <p className="text-sm text-[var(--color-text-light)] max-w-sm">
+                                        {isPaymentPending
+                                            ? 'Admin กำลังตรวจสอบยอดโอนเงินของคุณ เมื่อยืนยันเรียบร้อยจะเปลี่ยนสถานะเป็นรออนุมัติคำสั่งซื้อ'
+                                            : 'ออเดอร์ของคุณกำลังรอการอนุมัติจากผู้ดูแลระบบ เมื่อการตรวจสอบเสร็จสิ้น คุณจะสามารถเข้าถึงรายละเอียดวัตถุดิบและเมนูแนะนำประจำวันได้ที่นี่'
+                                        }
+                                    </p>
+                                    <div className={`mt-2 px-4 py-2 rounded-lg text-xs font-medium ${isPaymentPending ? 'bg-orange-50 border border-orange-200 text-orange-700' : 'bg-yellow-50 border border-yellow-200 text-yellow-700'}`}>
+                                        สถานะ: {isPaymentPending ? 'รอยืนยันการชำระเงิน' : 'รออนุมัติ'}
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4 mt-4 w-full max-w-md">
+                                        <div className="bg-white rounded-xl p-3 border border-[var(--color-border)]">
+                                            <p className="text-xs text-[var(--color-text-muted)] mb-1">📅 วันที่สั่งซื้อ</p>
+                                            <p className="font-semibold text-sm">
+                                                {mealPlanStatus?.orderDate ? new Date(mealPlanStatus.orderDate).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' }) : 'ไม่ระบุ'}
+                                            </p>
+                                        </div>
+                                        <div className="bg-white rounded-xl p-3 border border-[var(--color-border)]">
+                                            <p className="text-xs text-[var(--color-text-muted)] mb-1">💰 ยอดชำระ</p>
+                                            <p className="font-semibold text-sm text-[var(--color-primary)]">
+                                                ฿{(mealPlanStatus?.totalPrice || 0).toLocaleString()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ══ STATE 3: Verified / Preparing (รอจัดส่ง / กำลังขนส่ง) ══ */}
+                        {hasMealPlan === true && isVerified && activeMealSet && (
                             <>
                                 {/* Set Info Banner */}
                                 <div className="glass-card p-4 mb-5 flex items-center gap-4 animate-fade-in">
@@ -269,14 +374,14 @@ export default function DashboardPage() {
                                             <span className="text-sm text-[var(--color-text-muted)]">
                                                 {mealPlanStatus?.plan === 'weekly' ? '📅 รายสัปดาห์' : '📦 รายเดือน'}
                                             </span>
-                                            <span className="text-sm px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">
-                                                ✅ {mealPlanStatus?.status}
+                                            <span className="text-sm px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">
+                                                📋 {mealPlanStatus?.status}
                                             </span>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Order Tracking & Expiry Info */}
+                                {/* Order info */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
                                     <div className="bg-white rounded-xl p-4 border border-[var(--color-border)] shadow-sm">
                                         <p className="text-xs text-[var(--color-text-muted)] mb-1">📅 วันที่สั่งซื้อ</p>
@@ -285,160 +390,125 @@ export default function DashboardPage() {
                                         </p>
                                     </div>
                                     <div className="bg-white rounded-xl p-4 border border-[var(--color-border)] shadow-sm">
-                                        <p className="text-xs text-[var(--color-text-muted)] mb-1">🚚 วันที่จัดส่ง / เริ่มรอบ</p>
-                                        <p className="font-semibold text-sm">
-                                            {(() => {
-                                                if (!mealPlanStatus?.deliveryDate) return 'ไม่ระบุ';
-                                                const d = parseDeliveryDate(mealPlanStatus.deliveryDate);
-                                                return d ? d.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' }) : 'ไม่ระบุ';
-                                            })()}
+                                        <p className="text-xs text-[var(--color-text-muted)] mb-1">🚚 วันที่จัดส่งโดยประมาณ</p>
+                                        <p className="font-semibold text-sm text-[var(--color-primary)]">
+                                            ประมาณ 1 - 3 วันทำการ
                                         </p>
-                                        {mealPlanStatus?.plan === 'monthly' && (
-                                            <p className="text-xs text-[var(--color-primary)] mt-1">
-                                                * จัดส่งสัปดาห์ละ 1 ครั้ง ต่อเนื่อง 4 สัปดาห์
-                                            </p>
-                                        )}
                                     </div>
                                 </div>
 
-                                {/* Expiry Alert Logic */}
-                                {(() => {
-                                    if (!mealPlanStatus?.deliveryDate) return null;
-                                    const deliveryDate = parseDeliveryDate(mealPlanStatus.deliveryDate);
-                                    if (!deliveryDate) return null;
-                                    const daysToAdd = mealPlanStatus.plan === 'monthly' ? 28 : 7;
-                                    const expiryDate = new Date(deliveryDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
-                                    const today = new Date();
-                                    const diffTime = expiryDate.getTime() - today.getTime();
-                                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                {/* Tab Switcher */}
+                                <div className="flex gap-2 mb-5 bg-white rounded-xl p-1.5 shadow-sm">
+                                    <button
+                                        onClick={() => setActiveTab('meals')}
+                                        className={`flex-1 py-3 px-4 rounded-lg font-medium text-sm transition-all ${activeTab === 'meals'
+                                            ? 'bg-[var(--color-primary)] text-white shadow-md'
+                                            : 'text-[var(--color-text-light)] hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        🍽️ เมนูแนะนำวันนี้
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveTab('box')}
+                                        className={`flex-1 py-3 px-4 rounded-lg font-medium text-sm transition-all ${activeTab === 'box'
+                                            ? 'bg-[var(--color-primary)] text-white shadow-md'
+                                            : 'text-[var(--color-text-light)] hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        📦 วัตถุดิบในกล่อง
+                                    </button>
+                                </div>
 
-                                    if (diffDays <= 3) {
-                                        const isExpired = diffDays <= 0;
-                                        return (
-                                            <div className={`p-4 rounded-xl mb-5 flex items-start gap-3 ${isExpired ? 'bg-red-50 border border-red-200' : 'bg-orange-50 border border-orange-200'}`}>
-                                                <div className="text-2xl mt-0.5">{isExpired ? '⚠️' : '⏳'}</div>
-                                                <div className="flex-1">
-                                                    <h4 className={`font-bold ${isExpired ? 'text-red-800' : 'text-orange-800'}`}>
-                                                        {isExpired ? 'แผนอาหารของคุณหมดอายุแล้ว' : `แผนอาหารของคุณกำลังจะหมดอายุในอีก ${diffDays} วัน`}
-                                                    </h4>
-                                                    <p className={`text-sm mt-1 ${isExpired ? 'text-red-600' : 'text-orange-700'}`}>
-                                                        วันที่สิ้นสุดรอบ: {expiryDate.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}
-                                                    </p>
-                                                    <div className="mt-3">
-                                                        <Link href="/meal-plan" className={`inline-block px-4 py-2 rounded-lg text-white font-medium text-sm transition-colors ${isExpired ? 'bg-red-600 hover:bg-red-700' : 'bg-orange-600 hover:bg-orange-700'}`}>
-                                                            สั่งกล่องใหม่เพื่อต่อเวลาเลย 🔄
-                                                        </Link>
+                                {/* Tab: Box Ingredients */}
+                                {activeTab === 'box' && (
+                                    <div className="space-y-3 animate-fade-in">
+                                        <p className="text-xs text-[var(--color-text-muted)] px-1">
+                                            วัตถุดิบสดทั้งหมด {activeMealSet.boxIngredients.length} รายการ
+                                            {' · '} แสดงน้ำหนักต่อ 1 สัปดาห์ (คูณตามไซส์ {mealPlanStatus?.boxSize || 'M'})
+                                        </p>
+                                        {activeMealSet.boxIngredients.map((item: any, i: number) => {
+                                            const baseMultiplier = mealPlanStatus?.sizeMultiplier || 1.0;
+                                            const weeklyGrams = Math.round(item.gramsPerWeek * baseMultiplier);
+                                            return (
+                                                <div key={i} className="glass-card p-4 flex items-center gap-4 hover:shadow-sm transition-all bg-white/70" style={{ animationDelay: `${i * 50}ms` }}>
+                                                    <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-2xl flex-shrink-0">
+                                                        {ingredientsMap[item.ingredientId]?.image || '📦'}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-semibold text-sm text-[var(--color-text)]">{ingredientsMap[item.ingredientId]?.name || item.ingredientId}</p>
+                                                    </div>
+                                                    <div className="text-right flex-shrink-0">
+                                                        <span className="inline-block px-3 py-1.5 bg-[var(--color-primary)]/10 text-[var(--color-primary)] rounded-full font-bold text-sm">
+                                                            {weeklyGrams}g
+                                                        </span>
+                                                        <p className="text-[10px] text-[var(--color-text-muted)] mt-1 tracking-wide uppercase">ต่อสัปดาห์</p>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    }
-                                    return null;
-                                })()}
-
-                                {mealPlanStatus?.isApproved === false ? (
-                                    <div className="glass-card p-12 flex flex-col items-center justify-center text-center gap-4 animate-fade-in mb-5 bg-[var(--color-primary)]/5 border border-[var(--color-primary)]/20">
-                                        <div className="text-5xl mb-2 animate-pulse">⏳</div>
-                                        <h3 className="font-bold text-xl text-[var(--color-primary-dark)]">รอตรวจสอบและอนุมัติ</h3>
-                                        <p className="text-sm text-[var(--color-text-light)] max-w-sm">
-                                            ออเดอร์ของคุณกำลังรอการอนุมัติจากผู้ดูแลระบบ เมื่อการตรวจสอบเสร็จสิ้น คุณจะสามารถเข้าถึงรายละเอียดวัตถุดิบและสูตรอาหารทั้งหมดได้ที่นี่
-                                        </p>
-                                        <div className="mt-4 px-4 py-2 bg-yellow-50 border border-yellow-200 text-yellow-700 rounded-lg text-xs font-medium">
-                                            สถานะ: รออนุมัติ
-                                        </div>
+                                            );
+                                        })}
                                     </div>
-                                ) : (
-                                    <>
-                                        {/* Tab Switcher */}
-                                        <div className="flex gap-2 mb-5 bg-white rounded-xl p-1.5 shadow-sm">
-                                            <button
-                                                onClick={() => setActiveTab('box')}
-                                                className={`flex-1 py-3 px-4 rounded-lg font-medium text-sm transition-all ${activeTab === 'box'
-                                                    ? 'bg-[var(--color-primary)] text-white shadow-md'
-                                                    : 'text-[var(--color-text-light)] hover:bg-gray-50'
-                                                    }`}
-                                            >
-                                                📦 วัตถุดิบในกล่อง
-                                            </button>
-                                            <button
-                                                onClick={() => setActiveTab('meals')}
-                                                className={`flex-1 py-3 px-4 rounded-lg font-medium text-sm transition-all ${activeTab === 'meals'
-                                                    ? 'bg-[var(--color-primary)] text-white shadow-md'
-                                                    : 'text-[var(--color-text-light)] hover:bg-gray-50'
-                                                    }`}
-                                            >
-                                                🍽️ เมนูแนะนำ
-                                            </button>
-                                        </div>
+                                )}
 
-                                        {/* Tab: Box Ingredients */}
-                                        {activeTab === 'box' && (
-                                            <div className="space-y-3 animate-fade-in">
-                                                <p className="text-xs text-[var(--color-text-muted)] px-1">
-                                                    วัตถุดิบสดทั้งหมด {activeMealSet.boxIngredients.length} รายการ
-                                                    {' · '} แสดงน้ำหนักต่อ 1 สัปดาห์ (คูณตามไซส์ {mealPlanStatus?.boxSize || 'M'})
-                                                </p>
-                                                {activeMealSet.boxIngredients.map((item: any, i: number) => {
-                                                    const baseMultiplier = mealPlanStatus?.sizeMultiplier || 1.0;
-                                                    const weeklyGrams = Math.round(item.gramsPerWeek * baseMultiplier);
-
-                                                    return (
-                                                        <div
-                                                            key={i}
-                                                            className="glass-card p-4 flex items-center gap-4 hover:shadow-sm transition-all bg-white/70"
-                                                            style={{ animationDelay: `${i * 50}ms` }}
-                                                        >
-                                                            <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-2xl flex-shrink-0">
-                                                                {ingredientsMap[item.ingredientId]?.image || '📦'}
-                                                            </div>
-                                                            <div className="flex-1 min-w-0">
-                                                                <p className="font-semibold text-sm text-[var(--color-text)]">{ingredientsMap[item.ingredientId]?.name || item.ingredientId}</p>
-                                                                {baseMultiplier !== 1.0 && (
-                                                                    <p className="text-[10px] text-[var(--color-primary)] font-medium mt-0.5 bg-[var(--color-primary)]/10 inline-block px-1.5 rounded">
-                                                                        Size {mealPlanStatus?.boxSize} (x{baseMultiplier})
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                            <div className="text-right flex-shrink-0">
-                                                                <span className="inline-block px-3 py-1.5 bg-[var(--color-primary)]/10 text-[var(--color-primary)] rounded-full font-bold text-sm">
-                                                                    {weeklyGrams}g
-                                                                </span>
-                                                                <p className="text-[10px] text-[var(--color-text-muted)] mt-1 tracking-wide uppercase">ต่อสัปดาห์</p>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
+                                {/* Tab: Dynamic Daily Menu */}
+                                {activeTab === 'meals' && (
+                                    <div className="space-y-4 animate-fade-in">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-[var(--color-border)] shadow-sm">
+                                            <div>
+                                                <p className="font-bold text-[var(--color-primary-dark)]">🍽️ เมนูแนะนำวันนี้</p>
+                                                <p className="text-xs text-[var(--color-text-muted)] mt-0.5">เปลี่ยนทุกวัน ไม่ซ้ำกับเมื่อวาน</p>
                                             </div>
-                                        )}
-
-                                        {/* Tab: Recipes */}
-                                        {activeTab === 'meals' && (
-                                            <div className="space-y-4 animate-fade-in">
-                                                {activeMealSet.recipes.map((recipe: any, i: number) => {
-                                                    const mealInfo = mealTypeLabels[recipe.mealType] || { emoji: '🍽️', time: '' };
-                                                    const isExpanded = expandedRecipe === `r-${i}`;
+                                            {dailyTotalNutrients && (
+                                                <div className="flex flex-wrap gap-2 sm:gap-4 text-xs font-medium">
+                                                    <div className="flex items-center bg-orange-50 text-orange-700 px-3 py-1.5 rounded-lg border border-orange-100 shadow-sm">
+                                                        <span className="leading-none">🔥</span> <span className="text-base font-bold ml-1 leading-none">{dailyTotalNutrients.cal}</span> <span className="ml-1 text-[10px] leading-none">kcal</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="flex items-center bg-blue-50 text-blue-700 px-2 py-1.5 rounded-lg border border-blue-100 shadow-sm leading-none">
+                                                            <span className="mr-1">💪</span> P: {dailyTotalNutrients.pro}g
+                                                        </span>
+                                                        <span className="flex items-center bg-green-50 text-green-700 px-2 py-1.5 rounded-lg border border-green-100 shadow-sm leading-none">
+                                                            <span className="mr-1">🌾</span> C: {dailyTotalNutrients.car}g
+                                                        </span>
+                                                        <span className="flex items-center bg-yellow-50 text-yellow-700 px-2 py-1.5 rounded-lg border border-yellow-100 shadow-sm leading-none">
+                                                            <span className="mr-1">🥑</span> F: {dailyTotalNutrients.fat}g
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                        {dailyMenu ? (
+                                            <>
+                                                {[
+                                                    { key: 'breakfast', label: 'เช้า', menu: dailyMenu.breakfast },
+                                                    { key: 'lunch', label: 'กลางวัน', menu: dailyMenu.lunch },
+                                                    { key: 'dinner', label: 'เย็น', menu: dailyMenu.dinner },
+                                                ].map(({ key, label, menu }) => {
+                                                    if (!menu) return null;
+                                                    const mealInfo = mealTypeLabels[label] || { emoji: '🍽️', time: '' };
+                                                    const isExpanded = expandedRecipe === key;
+                                                    const recipeNutrients = getRecipeNutrition(menu);
                                                     return (
-                                                        <div key={i} className="glass-card overflow-hidden">
+                                                        <div key={key} className="glass-card overflow-hidden">
                                                             <button
                                                                 className="w-full p-5 text-left hover:bg-gray-50/50 transition-colors"
-                                                                onClick={() => setExpandedRecipe(isExpanded ? null : `r-${i}`)}
+                                                                onClick={() => setExpandedRecipe(isExpanded ? null : key)}
                                                             >
                                                                 <div className="flex items-start gap-4">
                                                                     <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--color-primary)]/10 to-[var(--color-secondary)]/10 flex items-center justify-center text-3xl flex-shrink-0">
-                                                                        {recipe.image}
+                                                                        {menu.image}
                                                                     </div>
                                                                     <div className="flex-1 min-w-0">
                                                                         <div className="flex flex-wrap items-center gap-2 mb-1">
                                                                             <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
-                                                                                {mealInfo.emoji} {recipe.mealType}
+                                                                                {mealInfo.emoji} {label}
                                                                             </span>
                                                                             {mealInfo.time && <span className="text-xs text-[var(--color-text-muted)]">{mealInfo.time}</span>}
                                                                         </div>
-                                                                        <h4 className="font-bold text-base">{recipe.name}</h4>
+                                                                        <h4 className="font-bold text-base">{menu.name}</h4>
                                                                         <div className="flex gap-3 mt-1 text-xs text-[var(--color-text-muted)]">
-                                                                            <span>⏱️ {recipe.cookTime} นาที</span>
-                                                                            <span>🔥 ~{recipe.calories} kcal</span>
-                                                                            <span>🏁 {recipe.servings} ที่</span>
+                                                                            <span>⏱️ {menu.cookTime} นาที</span>
+                                                                            <span>🔥 ~{menu.calories} kcal</span>
+                                                                            <span>🏁 {menu.servings} ที่</span>
                                                                         </div>
                                                                     </div>
                                                                     <div className="text-base text-[var(--color-text-muted)]">
@@ -449,28 +519,53 @@ export default function DashboardPage() {
 
                                                             {isExpanded && (
                                                                 <div className="border-t border-gray-100 p-5 space-y-5 bg-gray-50/50 animate-fade-in">
-                                                                    {/* Ingredients */}
-                                                                    <div>
-                                                                        <h5 className="font-semibold text-sm mb-3 text-[var(--color-primary-dark)]">🛒 ส่วนผสม</h5>
-                                                                        <div className="space-y-2">
-                                                                            {recipe.ingredients.map((ing: any, j: number) => (
-                                                                                <div key={j} className="flex items-center justify-between text-sm bg-white rounded-lg px-3 py-2">
-                                                                                    <span className="text-[var(--color-text-light)] flex items-center gap-2">
-                                                                                        <span className="text-base">{ingredientsMap[ing.ingredientId]?.image || '🔸'}</span>
-                                                                                        {ingredientsMap[ing.ingredientId]?.name || ing.ingredientId}
-                                                                                        {ing.note && <span className="text-[var(--color-text-muted)] text-xs ml-1">({ing.note})</span>}
-                                                                                    </span>
-                                                                                    <span className="font-semibold text-[var(--color-primary)]">{ing.gramsUsed}g</span>
-                                                                                </div>
-                                                                            ))}
+                                                                    {/* Meal Nutrition Info */}
+                                                                    <div className="bg-white p-4 rounded-xl shadow-sm border border-[var(--color-border)]">
+                                                                        <h5 className="font-semibold text-sm mb-3 flex items-center gap-2 text-[var(--color-primary-dark)]">
+                                                                            📊 สารอาหารรวมมื้อนี้
+                                                                        </h5>
+                                                                        <div className="grid grid-cols-4 gap-3 text-center">
+                                                                            <div className="bg-orange-50 rounded-lg p-2 flex flex-col items-center">
+                                                                                <span className="text-xs text-orange-400 mb-0.5 tracking-wide">CAL</span>
+                                                                                <span className="font-bold text-orange-600 font-mono">{recipeNutrients.cal}</span>
+                                                                            </div>
+                                                                            <div className="bg-blue-50 rounded-lg p-2 flex flex-col items-center">
+                                                                                <span className="text-xs text-blue-400 mb-0.5 tracking-wide">PRO</span>
+                                                                                <span className="font-bold text-blue-600 font-mono">{recipeNutrients.pro}g</span>
+                                                                            </div>
+                                                                            <div className="bg-green-50 rounded-lg p-2 flex flex-col items-center">
+                                                                                <span className="text-xs text-green-400 mb-0.5 tracking-wide">CARB</span>
+                                                                                <span className="font-bold text-green-600 font-mono">{recipeNutrients.car}g</span>
+                                                                            </div>
+                                                                            <div className="bg-yellow-50 rounded-lg p-2 flex flex-col items-center">
+                                                                                <span className="text-xs text-yellow-500 mb-0.5 tracking-wide">FAT</span>
+                                                                                <span className="font-bold text-yellow-600 font-mono">{recipeNutrients.fat}g</span>
+                                                                            </div>
                                                                         </div>
                                                                     </div>
 
-                                                                    {/* Steps */}
+                                                                    <div>
+                                                                        <h5 className="font-semibold text-sm mb-3 flex items-center gap-2 text-[var(--color-primary-dark)]">🛒 ส่วนผสม</h5>
+                                                                        <div className="space-y-2">
+                                                                            {(menu.ingredients || []).map((ing: any, j: number) => {
+                                                                                const ingItem = ingredientsMap[ing.ingredientId];
+                                                                                return (
+                                                                                    <div key={j} className="flex items-center justify-between text-sm bg-white rounded-lg px-3 py-2 shadow-sm border border-gray-50 hover:border-[var(--color-primary-light)] transition-colors">
+                                                                                        <span className="text-[var(--color-text-light)] flex items-center gap-2">
+                                                                                            <span className="text-base">{ingItem?.image || '🔸'}</span>
+                                                                                            <span className="font-medium text-[var(--color-text)]">{ingItem?.name || ing.ingredientId}</span>
+                                                                                            {ing.note && <span className="text-[var(--color-text-muted)] text-xs ml-1 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">{ing.note}</span>}
+                                                                                        </span>
+                                                                                        <span className="font-bold text-[var(--color-primary)] font-mono bg-[var(--color-primary)]/5 px-2 py-0.5 rounded-lg">{ing.gramsUsed}g</span>
+                                                                                    </div>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    </div>
                                                                     <div>
                                                                         <h5 className="font-semibold text-sm mb-3 text-[var(--color-primary-dark)]">📓 ขั้นตอนการปรุง</h5>
                                                                         <ol className="space-y-2.5">
-                                                                            {recipe.steps.map((step: string, k: number) => (
+                                                                            {(menu.steps || []).map((step: string, k: number) => (
                                                                                 <li key={k} className="flex gap-3 text-sm">
                                                                                     <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center text-xs font-bold">
                                                                                         {k + 1}
@@ -485,9 +580,195 @@ export default function DashboardPage() {
                                                         </div>
                                                     );
                                                 })}
+                                            </>
+                                        ) : (
+                                            <div className="glass-card p-8 text-center">
+                                                <div className="text-4xl mb-3">🍽️</div>
+                                                <p className="text-[var(--color-text-muted)]">กำลังโหลดเมนูแนะนำ...</p>
                                             </div>
                                         )}
-                                    </>
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        {/* ══ STATE 4: Delivered (จัดส่งสำเร็จ) ══ */}
+                        {hasMealPlan === true && isDelivered && activeMealSet && (
+                            <>
+                                {/* Set Info Banner */}
+                                <div className="glass-card p-4 mb-5 flex items-center gap-4 animate-fade-in">
+                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--color-primary)]/15 to-[var(--color-secondary)]/15 flex items-center justify-center text-2xl">
+                                        {activeMealSet.image}
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="font-bold text-[var(--color-primary-dark)] text-lg">{activeMealSet.name}</p>
+                                        <div className="flex items-center gap-3 mt-1">
+                                            <span className="text-sm font-medium bg-[var(--color-primary)]/10 text-[var(--color-primary-dark)] px-2 py-0.5 rounded">
+                                                ไซส์ {mealPlanStatus?.boxSize || 'M'}
+                                            </span>
+                                            <span className="text-sm px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">
+                                                ✅ จัดส่งสำเร็จ
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Delivery Info + Countdown */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+                                    <div className="bg-white rounded-xl p-4 border border-[var(--color-border)] shadow-sm">
+                                        <p className="text-xs text-[var(--color-text-muted)] mb-1">✅ วันที่จัดส่งสำเร็จ</p>
+                                        <p className="font-semibold text-sm">
+                                            {(() => {
+                                                if (!mealPlanStatus?.deliveredAt && !mealPlanStatus?.deliveryDate) return 'ไม่ระบุ';
+                                                const d = new Date(mealPlanStatus.deliveredAt || mealPlanStatus.deliveryDate);
+                                                return isNaN(d.getTime()) ? 'ไม่ระบุ' : d.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+                                            })()}
+                                        </p>
+                                    </div>
+                                    <div className="bg-gradient-to-r from-[var(--color-primary)]/5 to-[var(--color-secondary)]/5 rounded-xl p-4 border border-[var(--color-primary)]/20 shadow-sm">
+                                        <p className="text-xs text-[var(--color-text-muted)] mb-1">⏳ ระยะเวลาเหลือ</p>
+                                        <p className="font-bold text-2xl text-[var(--color-primary)]">
+                                            {mealPlanStatus?.remainingDays != null ? `${mealPlanStatus.remainingDays} วัน` : 'ไม่ระบุ'}
+                                        </p>
+                                        <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                                            {mealPlanStatus?.plan === 'weekly' ? 'แผน 7 วัน' : 'แผน 30 วัน'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Tab Switcher */}
+                                <div className="flex gap-2 mb-5 bg-white rounded-xl p-1.5 shadow-sm">
+                                    <button
+                                        onClick={() => setActiveTab('meals')}
+                                        className={`flex-1 py-3 px-4 rounded-lg font-medium text-sm transition-all ${activeTab === 'meals'
+                                            ? 'bg-[var(--color-primary)] text-white shadow-md'
+                                            : 'text-[var(--color-text-light)] hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        🍽️ เมนูที่ได้ทานวันนี้
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveTab('box')}
+                                        className={`flex-1 py-3 px-4 rounded-lg font-medium text-sm transition-all ${activeTab === 'box'
+                                            ? 'bg-[var(--color-primary)] text-white shadow-md'
+                                            : 'text-[var(--color-text-light)] hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        📦 วัตถุดิบในกล่อง
+                                    </button>
+                                </div>
+
+                                {/* Tab: Box Ingredients */}
+                                {activeTab === 'box' && (
+                                    <div className="space-y-3 animate-fade-in">
+                                        <p className="text-xs text-[var(--color-text-muted)] px-1">
+                                            วัตถุดิบสดทั้งหมด {activeMealSet.boxIngredients.length} รายการ
+                                        </p>
+                                        {activeMealSet.boxIngredients.map((item: any, i: number) => {
+                                            const baseMultiplier = mealPlanStatus?.sizeMultiplier || 1.0;
+                                            const weeklyGrams = Math.round(item.gramsPerWeek * baseMultiplier);
+                                            return (
+                                                <div key={i} className="glass-card p-4 flex items-center gap-4 hover:shadow-sm transition-all bg-white/70">
+                                                    <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-2xl flex-shrink-0">
+                                                        {ingredientsMap[item.ingredientId]?.image || '📦'}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-semibold text-sm text-[var(--color-text)]">{ingredientsMap[item.ingredientId]?.name || item.ingredientId}</p>
+                                                    </div>
+                                                    <div className="text-right flex-shrink-0">
+                                                        <span className="inline-block px-3 py-1.5 bg-[var(--color-primary)]/10 text-[var(--color-primary)] rounded-full font-bold text-sm">
+                                                            {weeklyGrams}g
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {/* Tab: Dynamic Daily Menu */}
+                                {activeTab === 'meals' && (
+                                    <div className="space-y-4 animate-fade-in">
+                                        <p className="text-xs text-[var(--color-text-muted)] px-1">
+                                            🍽️ เมนูแนะนำวันนี้ — เปลี่ยนทุกวัน ไม่ซ้ำกับเมื่อวาน
+                                        </p>
+                                        {dailyMenu ? (
+                                            <>
+                                                {[
+                                                    { key: 'breakfast', label: 'เช้า', menu: dailyMenu.breakfast },
+                                                    { key: 'lunch', label: 'กลางวัน', menu: dailyMenu.lunch },
+                                                    { key: 'dinner', label: 'เย็น', menu: dailyMenu.dinner },
+                                                ].map(({ key, label, menu }) => {
+                                                    if (!menu) return null;
+                                                    const mealInfo = mealTypeLabels[label] || { emoji: '🍽️', time: '' };
+                                                    const isExpanded2 = expandedRecipe === key;
+                                                    return (
+                                                        <div key={key} className="glass-card overflow-hidden">
+                                                            <button
+                                                                className="w-full p-5 text-left hover:bg-gray-50/50 transition-colors"
+                                                                onClick={() => setExpandedRecipe(isExpanded2 ? null : key)}
+                                                            >
+                                                                <div className="flex items-start gap-4">
+                                                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--color-primary)]/10 to-[var(--color-secondary)]/10 flex items-center justify-center text-3xl flex-shrink-0">
+                                                                        {menu.image}
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                                                                            <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+                                                                                {mealInfo.emoji} {label}
+                                                                            </span>
+                                                                        </div>
+                                                                        <h4 className="font-bold text-base">{menu.name}</h4>
+                                                                        <div className="flex gap-3 mt-1 text-xs text-[var(--color-text-muted)]">
+                                                                            <span>⏱️ {menu.cookTime} นาที</span>
+                                                                            <span>🔥 ~{menu.calories} kcal</span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="text-base text-[var(--color-text-muted)]">
+                                                                        {isExpanded2 ? '▲' : '▼'}
+                                                                    </div>
+                                                                </div>
+                                                            </button>
+                                                            {isExpanded2 && (
+                                                                <div className="border-t border-gray-100 p-5 space-y-5 bg-gray-50/50 animate-fade-in">
+                                                                    <div>
+                                                                        <h5 className="font-semibold text-sm mb-3 text-[var(--color-primary-dark)]">🛒 ส่วนผสม</h5>
+                                                                        <div className="space-y-2">
+                                                                            {(menu.ingredients || []).map((ing: any, j: number) => (
+                                                                                <div key={j} className="flex items-center justify-between text-sm bg-white rounded-lg px-3 py-2">
+                                                                                    <span className="text-[var(--color-text-light)] flex items-center gap-2">
+                                                                                        <span className="text-base">{ingredientsMap[ing.ingredientId]?.image || '🔸'}</span>
+                                                                                        {ingredientsMap[ing.ingredientId]?.name || ing.ingredientId}
+                                                                                    </span>
+                                                                                    <span className="font-semibold text-[var(--color-primary)]">{ing.gramsUsed}g</span>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <h5 className="font-semibold text-sm mb-3 text-[var(--color-primary-dark)]">📓 ขั้นตอนการปรุง</h5>
+                                                                        <ol className="space-y-2.5">
+                                                                            {(menu.steps || []).map((s: string, k: number) => (
+                                                                                <li key={k} className="flex gap-3 text-sm">
+                                                                                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center text-xs font-bold">{k + 1}</span>
+                                                                                    <span className="text-[var(--color-text-light)] leading-relaxed">{s}</span>
+                                                                                </li>
+                                                                            ))}
+                                                                        </ol>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </>
+                                        ) : (
+                                            <div className="glass-card p-8 text-center">
+                                                <div className="text-4xl mb-3">🍽️</div>
+                                                <p className="text-[var(--color-text-muted)]">กำลังโหลดเมนูแนะนำ...</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 )}
                             </>
                         )}
@@ -495,7 +776,7 @@ export default function DashboardPage() {
                         {/* Bottom links */}
                         <div className="flex flex-col sm:flex-row gap-3 mt-6">
                             <Link href="/meal-plan" className="btn-primary flex-1 justify-center !py-3 text-sm">
-                                {hasMealPlan ? 'เปลี่ยนแผนอาหาร 🔄' : 'เลือกแผนอาหาร 🍽️'}
+                                {hasMealPlan ? 'จัดการแผนอาหาร 📋' : 'เลือกแผนอาหาร 🍽️'}
                             </Link>
                             <Link href="/reword-points" className="btn-outline flex-1 justify-center !py-3 text-sm">
                                 แต้มสะสม ⭐
@@ -504,7 +785,6 @@ export default function DashboardPage() {
                     </div>
                 </div>
             </div>
-
-        </div>
+        </div >
     );
 }

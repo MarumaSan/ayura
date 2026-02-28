@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 const BoxIngredientSchema = new mongoose.Schema({
     ingredientId: { type: String, required: true },
     gramsPerWeek: { type: Number, required: true }, // ×4 สำหรับรายเดือน
+    note: { type: String, default: '' },
 });
 
 // Pre-calculated average daily nutrition for the whole set
@@ -15,7 +16,7 @@ const AvgNutritionSchema = new mongoose.Schema({
 });
 
 // Top-level MealSet — admin creates these.
-// Contains both the MealSet side (recipes) and the BoxSet side (boxIngredients).
+// Contains the BoxSet side (boxIngredients). Recipes are matched dynamically.
 const MealSetSchema = new mongoose.Schema({
     id: { type: String, required: true, unique: true },
     name: { type: String, required: true },       // e.g. "เซ็ตลดน้ำหนัก"
@@ -27,7 +28,6 @@ const MealSetSchema = new mongoose.Schema({
     priceMonthly: { type: Number, required: true },
     avgNutrition: { type: AvgNutritionSchema, default: () => ({}) },  // สารอาหารเฉลี่ยต่อวัน
     boxIngredients: [BoxIngredientSchema],
-    recipes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Recipe' }],
     isActive: { type: Boolean, default: true },
 }, { timestamps: true });
 

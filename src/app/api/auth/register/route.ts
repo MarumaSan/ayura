@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import { User } from '@/models/User';
+import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
     try {
@@ -15,6 +16,14 @@ export async function POST(request: Request) {
             );
         }
 
+        // Basic validation
+        if (password.length < 6) {
+            return NextResponse.json(
+                { error: 'Password must be at least 6 characters' },
+                { status: 400 }
+            );
+        }
+
         const existingUser = await User.findOne({ email });
 
         if (existingUser) {
@@ -24,14 +33,16 @@ export async function POST(request: Request) {
             );
         }
 
-        // Create a new user with minimal data, setting isProfileComplete to false
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 12);
+
         const newUser = new User({
             id: `usr-${Date.now()}`,
-            name,
-            email,
-            password, // In production this would be hashed (e.g. bcrypt)
+            name: name.trim(),
+            email: email.trim().toLowerCase(),
+            password: hashedPassword,
             isProfileComplete: false,
-            points: 10, // Starter bonus
+            points: 10,
             streak: 0
         });
 

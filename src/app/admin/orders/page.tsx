@@ -2,35 +2,41 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-const ingredients = [
-    { id: 'i1', name: 'อกไก่ออร์แกนิก', nameEn: 'Organic Chicken Breast', category: 'โปรตีน', image: '🍗', community: 'สหกรณ์การเกษตรดอยคำ', inStock: 150, unit: 'ชิ้น', pricePerUnit: 189 },
-    { id: 'i2', name: 'ผักเชียงดา', nameEn: 'Gymnema', category: 'ผัก', image: '🥬', community: 'ฟาร์มตัวอย่างหุบกะพง', inStock: 120, unit: 'กำ', pricePerUnit: 85 },
-    { id: 'i3', name: 'ขิงสด', nameEn: 'Ginger', category: 'สมุนไพร', image: '🫚', community: 'ศูนย์ศิลปาชีพบางไทร', inStock: 200, unit: 'กิโลกรัม', pricePerUnit: 55 },
-    { id: 'i4', name: 'ใบเตย', nameEn: 'Pandan', category: 'สมุนไพร', image: '🍃', community: 'กลุ่มวิสาหกิจชุมชนแม่กลอง', inStock: 180, unit: 'กำ', pricePerUnit: 35 },
-    { id: 'i5', name: 'ข้าวกล้อง', nameEn: 'Brown Rice', category: 'ธัญพืช', image: '🌾', community: 'ทุ่งกุลาร้องไห้', inStock: 300, unit: 'กก.', pricePerUnit: 145 },
-];
-const statusFilters = ['ทั้งหมด', 'รออนุมัติ', 'รอจัดส่ง', 'กำลังจัดเตรียม', 'จัดส่งแล้ว', 'จัดส่งสำเร็จ'];
+
+const statusFilters = ['ทั้งหมด', 'รอยืนยันการชำระเงิน', 'รออนุมัติ', 'รอจัดส่ง', 'กำลังขนส่ง', 'จัดส่งสำเร็จ'];
 
 export default function OrdersPage() {
     const [selectedStatus, setSelectedStatus] = useState('ทั้งหมด');
     const [orders, setOrders] = useState<any[]>([]);
+    const [topupRequests, setTopupRequests] = useState<any[]>([]);
+    const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<'orders' | 'topups'>('orders');
+    const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
+    const [showRevenueBreakdown, setShowRevenueBreakdown] = useState(false);
 
     useEffect(() => {
-        const fetchOrders = async () => {
+        const fetchData = async () => {
             try {
-                const res = await fetch('/api/admin/orders');
-                const json = await res.json();
-                if (json.success) {
-                    setOrders(json.data);
-                }
+                const [ordersRes, topupsRes, usersRes] = await Promise.all([
+                    fetch('/api/admin/orders'),
+                    fetch('/api/admin/topup'),
+                    fetch('/api/admin/users'),
+                ]);
+                const ordersJson = await ordersRes.json();
+                const topupsJson = await topupsRes.json();
+                const usersJson = await usersRes.json();
+
+                if (ordersJson.success) setOrders(ordersJson.data);
+                if (topupsJson.success) setTopupRequests(topupsJson.data);
+                if (usersJson.success) setUsers(usersJson.data);
             } catch (err) {
                 console.error(err);
             } finally {
                 setLoading(false);
             }
         };
-        fetchOrders();
+        fetchData();
     }, []);
 
     const updateOrderStatus = async (orderId: string, newStatus: string) => {
@@ -41,10 +47,25 @@ export default function OrdersPage() {
                 body: JSON.stringify({ status: newStatus })
             });
             if (res.ok) {
-                setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+                setOrders(orders.map(o => o.id === orderId || o._id === orderId ? { ...o, status: newStatus } : o));
             }
         } catch (err) {
             console.error('Failed to update status', err);
+        }
+    };
+
+    const processTopup = async (topupId: string, action: 'approve' | 'reject') => {
+        try {
+            const res = await fetch(`/api/admin/topup/${topupId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action })
+            });
+            if (res.ok) {
+                setTopupRequests(topupRequests.map(t => t._id === topupId ? { ...t, status: action === 'approve' ? 'approved' : 'rejected' } : t));
+            }
+        } catch (err) {
+            console.error('Failed to process topup', err);
         }
     };
 
@@ -53,31 +74,27 @@ export default function OrdersPage() {
             ? orders
             : orders.filter((o) => o.status === selectedStatus);
 
-    const totalBoxes = orders.length;
-    const totalRevenue = orders.reduce((sum, o) => sum + o.totalPrice, 0);
+    // Revenue calculations
+    const orderRevenue = orders
+        .filter(o => o.status !== 'ยกเลิก')
+        .reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+    const totalWalletBalance = users.reduce((sum, u) => sum + (u.balance || 0), 0);
+    const totalRevenue = orderRevenue + totalWalletBalance;
 
-    // Calculate ingredients needed for pending orders
-    const pendingOrders = orders.filter(
-        (o) => o.status === 'รอจัดส่ง' || o.status === 'กำลังจัดเตรียม'
-    );
-    const ingredientNeeded: Record<string, { name: string; count: number; image: string }> = {};
-    pendingOrders.forEach((order) => {
-        (order.box?.items || []).map((item: any) => item.ingredient).filter(Boolean).forEach((item: any) => {
-            if (ingredientNeeded[item.id]) {
-                ingredientNeeded[item.id].count++;
-            } else {
-                ingredientNeeded[item.id] = { name: item.name, count: 1, image: item.image };
-            }
-        });
-    });
+    const pendingPaymentCount = orders.filter(o => o.status === 'รอยืนยันการชำระเงิน').length;
+    const pendingTopupCount = topupRequests.filter(t => t.status === 'pending').length;
 
-    // Zero waste calculation
-    const totalStockUsed = pendingOrders.reduce(
-        (sum: number, o: any) => sum + (o.box?.items || []).map((item: any) => item.ingredient).filter(Boolean).length,
-        0
-    );
-    const totalStock = ingredients.reduce((sum: number, i: any) => sum + i.inStock, 0);
-    const usageRate = Math.round((totalStockUsed / totalStock) * 100);
+    const statusColor = (status: string) => {
+        if (status === 'จัดส่งสำเร็จ') return 'bg-green-100 text-green-700';
+        if (status === 'กำลังขนส่ง') return 'bg-yellow-100 text-yellow-600';
+        if (status === 'รอยืนยันการชำระเงิน') return 'bg-orange-100 text-orange-700';
+        if (status === 'รออนุมัติ') return 'bg-purple-100 text-purple-600';
+        if (status === 'รอจัดส่ง') return 'bg-blue-100 text-blue-600';
+        if (status === 'ยกเลิก') return 'bg-red-100 text-red-600';
+        return 'bg-gray-100 text-gray-600';
+    };
+
+    const planLabel = (plan: string) => plan === 'weekly' ? 'รายสัปดาห์ (7 วัน)' : 'รายเดือน (30 วัน)';
 
     return (
         <div className="min-h-screen pt-24 pb-16 bg-[var(--color-bg-section)]">
@@ -95,54 +112,96 @@ export default function OrdersPage() {
                         📦 จัดการคำสั่งซื้อ
                     </h1>
                     <p className="text-[var(--color-text-light)]">
-                        สรุปยอดและจัดการออเดอร์รายสัปดาห์
+                        ยืนยันการชำระเงินและจัดการออเดอร์
                     </p>
                 </div>
 
                 {/* Summary Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
                     <div className="glass-card p-5 animate-fade-in">
                         <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center text-2xl text-white">
-                                📦
-                            </div>
+                            <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center text-2xl text-white">📦</div>
                             <div>
-                                <div className="text-2xl font-bold text-[var(--color-primary)]">{totalBoxes}</div>
-                                <div className="text-sm text-[var(--color-text-light)]">กล่องทั้งหมดสัปดาห์นี้</div>
+                                <div className="text-2xl font-bold text-[var(--color-primary)]">{orders.length}</div>
+                                <div className="text-sm text-[var(--color-text-light)]">ออเดอร์ทั้งหมด</div>
                             </div>
                         </div>
                     </div>
                     <div className="glass-card p-5 animate-fade-in delay-100">
                         <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-xl gradient-gold flex items-center justify-center text-2xl text-white">
-                                💰
-                            </div>
+                            <div className="w-12 h-12 rounded-xl bg-orange-500 flex items-center justify-center text-2xl text-white">⏳</div>
                             <div>
-                                <div className="text-2xl font-bold text-[var(--color-secondary)]">
-                                    ฿{totalRevenue.toLocaleString()}
-                                </div>
-                                <div className="text-sm text-[var(--color-text-light)]">รายได้รวม</div>
+                                <div className="text-2xl font-bold text-orange-600">{pendingPaymentCount}</div>
+                                <div className="text-sm text-[var(--color-text-light)]">รอยืนยันการชำระ</div>
                             </div>
                         </div>
                     </div>
-                    <div className="glass-card p-5 animate-fade-in delay-200">
+                    <div className="glass-card p-5 animate-fade-in delay-150">
                         <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-xl bg-[var(--color-success)] flex items-center justify-center text-2xl text-white">
-                                ♻️
-                            </div>
+                            <div className="w-12 h-12 rounded-xl bg-purple-500 flex items-center justify-center text-2xl text-white">💸</div>
                             <div>
-                                <div className="text-2xl font-bold text-[var(--color-success)]">92%</div>
-                                <div className="text-sm text-[var(--color-text-light)]">Zero Waste Rate</div>
+                                <div className="text-2xl font-bold text-purple-600">{pendingTopupCount}</div>
+                                <div className="text-sm text-[var(--color-text-light)]">รอยืนยันเติมเงิน</div>
                             </div>
                         </div>
+                    </div>
+                    {/* Revenue Card with Breakdown */}
+                    <div
+                        className="glass-card p-5 animate-fade-in delay-200 cursor-pointer hover:shadow-lg transition-shadow relative"
+                        onClick={() => setShowRevenueBreakdown(!showRevenueBreakdown)}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-xl gradient-gold flex items-center justify-center text-2xl text-white">💰</div>
+                            <div>
+                                <div className="text-2xl font-bold text-[var(--color-secondary)]">฿{totalRevenue.toLocaleString()}</div>
+                                <div className="text-sm text-[var(--color-text-light)]">รายได้รวม <span className="text-xs">🔽</span></div>
+                            </div>
+                        </div>
+                        {showRevenueBreakdown && (
+                            <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-white rounded-xl shadow-xl border border-[var(--color-border)] p-4 animate-fade-in">
+                                <h4 className="text-sm font-bold mb-3 text-[var(--color-text)]">💰 รายละเอียดรายได้</h4>
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="text-[var(--color-text-light)]">📦 รายได้จากออเดอร์</span>
+                                        <span className="font-bold text-[var(--color-primary)]">฿{orderRevenue.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="text-[var(--color-text-light)]">💸 เงินคงเหลือใน Wallet</span>
+                                        <span className="font-bold text-purple-600">฿{totalWalletBalance.toLocaleString()}</span>
+                                    </div>
+                                    <div className="border-t border-[var(--color-border)] pt-2 mt-2 flex items-center justify-between text-sm font-bold">
+                                        <span>รวมทั้งหมด</span>
+                                        <span className="text-[var(--color-secondary)]">฿{totalRevenue.toLocaleString()}</span>
+                                    </div>
+                                </div>
+                                <p className="text-[10px] text-gray-400 mt-2">* รายได้รวม = เงินที่ซื้อออเดอร์แล้ว + เงินที่ยังเหลืออยู่ในวอลเลทของผู้ใช้ทุกคน</p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Orders Table */}
-                    <div className="lg:col-span-2">
+                {/* Tab Switch */}
+                <div className="flex gap-3 mb-6">
+                    <button
+                        onClick={() => setActiveTab('orders')}
+                        className={`px-5 py-2.5 rounded-xl font-medium text-sm transition-all ${activeTab === 'orders' ? 'gradient-primary text-white shadow-md' : 'bg-white border border-gray-200 text-gray-600 hover:border-[var(--color-primary)]/30'}`}
+                    >
+                        📦 คำสั่งซื้อ
+                        {pendingPaymentCount > 0 && <span className="ml-2 bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded-full">{pendingPaymentCount}</span>}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('topups')}
+                        className={`px-5 py-2.5 rounded-xl font-medium text-sm transition-all ${activeTab === 'topups' ? 'gradient-primary text-white shadow-md' : 'bg-white border border-gray-200 text-gray-600 hover:border-[var(--color-primary)]/30'}`}
+                    >
+                        💸 เติมเงิน Wallet
+                        {pendingTopupCount > 0 && <span className="ml-2 bg-purple-500 text-white text-xs px-1.5 py-0.5 rounded-full">{pendingTopupCount}</span>}
+                    </button>
+                </div>
+
+                {activeTab === 'orders' && (
+                    <>
                         {/* Filter Tabs */}
-                        <div className="flex gap-2 mb-4 flex-wrap animate-fade-in delay-200">
+                        <div className="flex gap-2 mb-4 flex-wrap animate-fade-in">
                             {statusFilters.map((status) => (
                                 <button
                                     key={status}
@@ -163,172 +222,231 @@ export default function OrdersPage() {
                         </div>
 
                         {/* Orders List */}
-                        <div className="space-y-3 animate-fade-in delay-300">
+                        <div className="space-y-3 animate-fade-in">
                             {loading ? (
                                 <div className="text-center py-8 text-[var(--color-text-light)]">กำลังโหลดข้อมูล...</div>
-                            ) : filteredOrders.map((order) => (
-                                <div key={order.id} className="glass-card p-5 hover-lift transition-all">
-                                    <div className="flex items-start justify-between mb-3">
-                                        <div>
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-sm font-bold text-[var(--color-primary)]">
-                                                    {order.id}
-                                                </span>
-                                                <span
-                                                    className={`text-xs px-3 py-1 rounded-full font-medium ${order.status === 'สำเร็จ'
-                                                        ? 'bg-[var(--color-success)]/10 text-[var(--color-success)]'
-                                                        : order.status === 'จัดส่งแล้ว'
-                                                            ? 'bg-blue-100 text-blue-600'
-                                                            : order.status === 'กำลังจัดเตรียม'
-                                                                ? 'bg-yellow-100 text-yellow-600'
-                                                                : 'bg-gray-100 text-gray-600'
-                                                        }`}
+                            ) : filteredOrders.length === 0 ? (
+                                <div className="glass-card p-8 text-center text-[var(--color-text-muted)]">ไม่มีออเดอร์ในสถานะนี้</div>
+                            ) : filteredOrders.map((order) => {
+                                const isExpanded = expandedOrder === (order.id || order._id);
+                                return (
+                                    <div key={order.id || order._id} className="glass-card overflow-hidden hover-lift transition-all">
+                                        {/* Order Header — always visible */}
+                                        <div
+                                            className="p-5 cursor-pointer"
+                                            onClick={() => setExpandedOrder(isExpanded ? null : (order.id || order._id))}
+                                        >
+                                            <div className="flex items-center justify-between gap-6">
+                                                {/* Left: Info */}
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-3 flex-wrap mb-1">
+                                                        <span className="text-sm font-bold text-[var(--color-primary)]">
+                                                            {order.id || order._id}
+                                                        </span>
+                                                        <span className={`text-[10px] px-3 py-0.5 rounded-full font-medium ${statusColor(order.status)}`}>
+                                                            {order.status}
+                                                        </span>
+                                                        <span className="text-[10px] text-gray-400 px-2 py-0.5 bg-gray-50 border border-gray-100 rounded-full">
+                                                            {order.paymentMethod === 'PROMPTPAY' ? '📱 PromptPay' : '💰 Wallet'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-sm font-bold truncate text-gray-700">{order.customerName}</div>
+                                                    <div className="text-[10px] text-gray-400 mt-1 flex items-center gap-3">
+                                                        <span className="truncate max-w-[200px]">📍 {order.address || 'ไม่ระบุ'}</span>
+                                                        {order.phone && <span>📞 {order.phone}</span>}
+                                                    </div>
+                                                </div>
+
+                                                {/* Middle: Price and Date Stack */}
+                                                <div className="text-right flex flex-col items-end gap-1 min-w-[120px]">
+                                                    <div className="text-xl font-bold text-[var(--color-primary)] leading-none">
+                                                        ฿{order.totalPrice?.toLocaleString()}
+                                                    </div>
+                                                    <div className="text-[10px] font-medium text-gray-500">
+                                                        📅 วันที่สั่งซื้อ: {new Date(order.createdAt).toLocaleDateString('th-TH')}
+                                                    </div>
+                                                    <div className="text-[9px] text-gray-400 leading-none">
+                                                        {planLabel(order.plan)}
+                                                    </div>
+                                                    {order.targetDeliveryDate && !['จัดส่งสำเร็จ', 'ยกเลิก'].includes(order.status) && (
+                                                        <div className="mt-1 px-2 py-0.5 bg-red-50 text-red-600 rounded text-[10px] font-bold border border-red-200 shadow-sm animate-pulse-slow">
+                                                            ⚠️ สั่งล่วงหน้า: ส่งภายใน {new Date(order.targetDeliveryDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Right: Action Section (No background container) */}
+                                                <div
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="min-w-[120px] flex items-center justify-end"
                                                 >
-                                                    {order.status}
-                                                </span>
+                                                    {order.status === 'รอยืนยันการชำระเงิน' && (
+                                                        <button
+                                                            onClick={() => updateOrderStatus(order.id || order._id, 'รออนุมัติ')}
+                                                            className="text-xs font-bold py-2.5 px-4 rounded-xl bg-orange-50 text-orange-600 border border-orange-100 hover:bg-orange-100 transition-all flex items-center gap-1"
+                                                        >
+                                                            <span>✅</span> ยืนยันรับเงิน
+                                                        </button>
+                                                    )}
+                                                    {order.status === 'รออนุมัติ' && (
+                                                        <button
+                                                            onClick={() => updateOrderStatus(order.id || order._id, 'รอจัดส่ง')}
+                                                            className="text-xs font-bold py-2.5 px-4 rounded-xl bg-green-50 text-green-600 border border-green-100 hover:bg-green-100 transition-all flex items-center gap-1"
+                                                        >
+                                                            <span>✅</span> อนุมัติออเดอร์
+                                                        </button>
+                                                    )}
+                                                    {order.status === 'รอจัดส่ง' && (
+                                                        <button
+                                                            onClick={() => updateOrderStatus(order.id || order._id, 'กำลังขนส่ง')}
+                                                            className="text-xs font-bold py-2.5 px-4 rounded-xl bg-yellow-50 text-yellow-700 border border-yellow-100 hover:bg-yellow-100 transition-all flex items-center gap-1"
+                                                        >
+                                                            <span>🚛</span> จัดส่งสินค้า
+                                                        </button>
+                                                    )}
+                                                    {order.status === 'กำลังขนส่ง' && (
+                                                        <button
+                                                            onClick={() => updateOrderStatus(order.id || order._id, 'จัดส่งสำเร็จ')}
+                                                            className="text-xs font-bold py-2.5 px-4 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-all flex items-center gap-1"
+                                                        >
+                                                            <span>🏁</span> ส่งสำเร็จ
+                                                        </button>
+                                                    )}
+                                                    {order.status === 'จัดส่งสำเร็จ' && (
+                                                        <div className="px-4 py-2 rounded-xl bg-green-50 text-green-600 border border-green-100 text-[10px] font-bold flex items-center gap-1">
+                                                            <span>✅</span> สำเร็จแล้ว
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <div className="text-sm mt-1">{order.customerName}</div>
+
+                                            {/* Expand Button / Toggle (Arrows only) */}
+                                            <div className="flex justify-end mt-1">
+                                                <button className="text-[12px] text-[var(--color-primary)] opacity-50 hover:opacity-100 transition-opacity">
+                                                    {isExpanded ? '▲' : '▼'}
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div className="text-right">
-                                            <div className="text-lg font-bold text-[var(--color-primary)]">
-                                                ฿{order.totalPrice}
+
+                                        {/* Order Details — expanded */}
+                                        {isExpanded && (
+                                            <div className="border-t border-[var(--color-border)] bg-[var(--color-bg-section)]/50 p-5 animate-fade-in">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                                    {/* Info Column */}
+                                                    <div className="space-y-3">
+                                                        <h4 className="text-sm font-bold text-[var(--color-primary)] mb-2">📋 ข้อมูลการจัดส่ง</h4>
+                                                        <div className="bg-white rounded-xl p-3 text-sm space-y-2">
+                                                            <div className="flex justify-between">
+                                                                <span className="text-[var(--color-text-light)]">📍 ที่อยู่</span>
+                                                                <span className="text-right max-w-[60%]">{order.address || 'ไม่ระบุ'}</span>
+                                                            </div>
+                                                            <div className="flex justify-between">
+                                                                <span className="text-[var(--color-text-light)]">📞 เบอร์โทร</span>
+                                                                <span>{order.phone || 'ไม่ระบุ'}</span>
+                                                            </div>
+                                                            <div className="flex justify-between">
+                                                                <span className="text-[var(--color-text-light)]">📦 เซ็ต</span>
+                                                                <span className="font-medium">{order.mealSetName || order.mealSetId}</span>
+                                                            </div>
+                                                            <div className="flex justify-between">
+                                                                <span className="text-[var(--color-text-light)]">📐 ขนาด</span>
+                                                                <span className="font-medium">ไซส์ {order.boxSize || 'M'}</span>
+                                                            </div>
+                                                            <div className="flex justify-between">
+                                                                <span className="text-[var(--color-text-light)]">📅 ระยะเวลา</span>
+                                                                <span>{planLabel(order.plan)}</span>
+                                                            </div>
+                                                            <div className="flex justify-between">
+                                                                <span className="text-[var(--color-text-light)]">💰 ราคา</span>
+                                                                <span className="font-bold text-[var(--color-primary)]">฿{order.totalPrice?.toLocaleString()}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Box Contents Column */}
+                                                    <div className="space-y-3">
+                                                        <h4 className="text-sm font-bold text-[var(--color-primary)] mb-2">🥗 ของในกล่อง</h4>
+                                                        {order.boxContents && order.boxContents.length > 0 ? (
+                                                            <div className="bg-white rounded-xl p-3">
+                                                                <div className="space-y-2">
+                                                                    {order.boxContents.map((item: any, idx: number) => (
+                                                                        <div key={idx} className="flex items-center justify-between text-sm py-1 border-b border-gray-50 last:border-0">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <span className="text-lg">{item.image}</span>
+                                                                                <span>{item.name}</span>
+                                                                            </div>
+                                                                            <span className="text-[var(--color-text-muted)] font-mono text-xs">
+                                                                                {item.totalGrams > 0 ? `${item.totalGrams} กรัม` : '-'}
+                                                                            </span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="bg-white rounded-xl p-4 text-sm text-[var(--color-text-muted)] text-center">
+                                                                ไม่มีข้อมูลของในกล่อง
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="text-xs text-[var(--color-text-muted)]">
-                                                {order.plan === 'weekly' ? 'รายสัปดาห์' : 'รายเดือน'}
-                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </>
+                )}
+
+                {activeTab === 'topups' && (
+                    <div className="space-y-3 animate-fade-in">
+                        <p className="text-sm text-[var(--color-text-muted)] mb-4">
+                            รายการคำขอเติมเงินที่รอการยืนยัน — ตรวจสอบสลิปโอนเงินจาก PromptPay แล้วกดยืนยัน
+                        </p>
+                        {loading ? (
+                            <div className="text-center py-8 text-[var(--color-text-light)]">กำลังโหลดข้อมูล...</div>
+                        ) : topupRequests.length === 0 ? (
+                            <div className="glass-card p-8 text-center text-[var(--color-text-muted)]">ไม่มีรายการเติมเงินที่รอยืนยัน</div>
+                        ) : topupRequests.map((req) => (
+                            <div key={req._id} className="glass-card p-5 hover-lift transition-all">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <div className="flex items-center gap-3 mb-1">
+                                            <span className="text-sm font-bold">{req.userName || req.userId}</span>
+                                            <span className={`text-xs px-3 py-1 rounded-full font-medium ${req.status === 'approved' ? 'bg-green-100 text-green-700' : req.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                {req.status === 'approved' ? '✅ อนุมัติแล้ว' : req.status === 'rejected' ? '❌ ปฏิเสธแล้ว' : '⏳ รอยืนยัน'}
+                                            </span>
+                                        </div>
+                                        <div className="text-xs text-gray-400">
+                                            {new Date(req.createdAt).toLocaleString('th-TH')}
                                         </div>
                                     </div>
-
-                                    <div className="flex items-center gap-2 mb-3">
-                                        {(order.box?.items || []).map((item: any) => item.ingredient).filter(Boolean).map((item: any) => (
-                                            <div
-                                                key={item.id}
-                                                className="w-8 h-8 rounded-lg bg-[var(--color-bg-section)] flex items-center justify-center text-lg"
-                                                title={item.name}
-                                            >
-                                                {item.image}
-                                            </div>
-                                        ))}
-                                        <span className="text-xs text-[var(--color-text-muted)] ml-1">
-                                            {(order.box?.items || []).map((item: any) => item.ingredient).filter(Boolean).length} ชิ้น
-                                        </span>
-                                    </div>
-
-                                    <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)] mt-2">
-                                        <span>📍 {order.address?.slice(0, 40) || 'ไม่ระบุ'}...</span>
-                                        <span>📅 {order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString('th-TH') : 'ไม่ระบุ'}</span>
-                                    </div>
-
-                                    <div className="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-[var(--color-border)]">
-                                        <div className="text-xs text-[var(--color-text-light)]">อัปเดตสถานะ:</div>
-                                        {order.status === 'รออนุมัติ' && (
-                                            <button onClick={() => updateOrderStatus(order.id, 'รอจัดส่ง')} className="text-xs bg-green-100 text-green-700 px-3 py-1.5 rounded-lg hover:bg-green-200 transition-colors">
-                                                ✅ อนุมัติออเดอร์ (รอจัดส่ง)
-                                            </button>
-                                        )}
-                                        {order.status === 'รอจัดส่ง' && (
-                                            <button onClick={() => updateOrderStatus(order.id, 'กำลังจัดเตรียม')} className="text-xs bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-lg hover:bg-yellow-200 transition-colors">
-                                                📦 กำลังจัดเตรียม
-                                            </button>
-                                        )}
-                                        {order.status === 'กำลังจัดเตรียม' && (
-                                            <button onClick={() => updateOrderStatus(order.id, 'จัดส่งแล้ว')} className="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-200 transition-colors">
-                                                🚚 จัดส่งแล้ว
-                                            </button>
-                                        )}
-                                        {order.status === 'จัดส่งแล้ว' && (
-                                            <button onClick={() => updateOrderStatus(order.id, 'จัดส่งสำเร็จ')} className="text-xs bg-[var(--color-success)]/10 text-[var(--color-success)] px-3 py-1.5 rounded-lg hover:bg-[var(--color-success)]/20 transition-colors">
-                                                🏁 จัดส่งสำเร็จ
-                                            </button>
-                                        )}
+                                    <div className="text-right">
+                                        <div className="text-2xl font-bold text-[var(--color-primary)]">฿{req.amount?.toLocaleString()}</div>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
+
+                                {req.status === 'pending' && (
+                                    <div className="flex gap-3 mt-4 pt-3 border-t border-[var(--color-border)]">
+                                        <button
+                                            onClick={() => processTopup(req._id, 'approve')}
+                                            className="flex-1 py-2.5 bg-green-100 text-green-700 rounded-xl text-sm font-bold hover:bg-green-200 transition-colors"
+                                        >
+                                            ✅ ยืนยันรับเงิน (เติม ฿{req.amount?.toLocaleString()} ให้ {req.userName})
+                                        </button>
+                                        <button
+                                            onClick={() => processTopup(req._id, 'reject')}
+                                            className="px-4 py-2.5 bg-red-100 text-red-700 rounded-xl text-sm font-bold hover:bg-red-200 transition-colors"
+                                        >
+                                            ❌ ปฏิเสธ
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
                     </div>
-
-                    {/* Right: Preparation Summary */}
-                    <div className="lg:col-span-1 space-y-6">
-                        {/* Ingredients to Prepare */}
-                        <div className="glass-card p-6 animate-fade-in delay-300">
-                            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                                🥬 วัตถุดิบที่ต้องเตรียม
-                            </h3>
-                            <p className="text-xs text-[var(--color-text-muted)] mb-4">
-                                สำหรับออเดอร์ที่รอจัดส่งและกำลังจัดเตรียม ({pendingOrders.length} ออเดอร์)
-                            </p>
-                            <div className="space-y-2">
-                                {Object.values(ingredientNeeded).map((item, i) => (
-                                    <div
-                                        key={i}
-                                        className="flex items-center justify-between p-3 bg-[var(--color-bg)] rounded-xl"
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xl">{item.image}</span>
-                                            <span className="text-sm">{item.name}</span>
-                                        </div>
-                                        <span className="text-sm font-bold text-[var(--color-primary)]">
-                                            x{item.count}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Zero Waste Indicator */}
-                        <div className="glass-card p-6 animate-fade-in delay-400">
-                            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                                ♻️ Zero Waste Monitor
-                            </h3>
-                            <div className="space-y-3">
-                                <div>
-                                    <div className="flex items-center justify-between text-sm mb-2">
-                                        <span className="text-[var(--color-text-light)]">อัตราการใช้วัตถุดิบ</span>
-                                        <span className="font-bold text-[var(--color-success)]">92%</span>
-                                    </div>
-                                    <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-[var(--color-success)] rounded-full transition-all duration-1000"
-                                            style={{ width: '92%' }}
-                                        />
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="flex items-center justify-between text-sm mb-2">
-                                        <span className="text-[var(--color-text-light)]">ส่งมอบตรงเวลา</span>
-                                        <span className="font-bold text-[var(--color-primary)]">88%</span>
-                                    </div>
-                                    <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full gradient-primary rounded-full transition-all duration-1000"
-                                            style={{ width: '88%' }}
-                                        />
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="flex items-center justify-between text-sm mb-2">
-                                        <span className="text-[var(--color-text-light)]">ความพึงพอใจ</span>
-                                        <span className="font-bold text-[var(--color-secondary)]">95%</span>
-                                    </div>
-                                    <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full gradient-gold rounded-full transition-all duration-1000"
-                                            style={{ width: '95%' }}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="mt-4 p-3 bg-[var(--color-success)]/10 rounded-xl">
-                                <p className="text-xs text-[var(--color-success)] leading-relaxed">
-                                    🌱 สัปดาห์นี้ใช้วัตถุดิบอย่างมีประสิทธิภาพ
-                                    ลดการสูญเสียได้ดีกว่าเป้าหมาย!
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                )}
             </div>
-        </div>
+        </div >
     );
 }

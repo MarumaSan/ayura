@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+// @ts-ignore
+import generatePayload from 'promptpay-qr';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function CheckoutPage() {
     const router = useRouter();
@@ -22,6 +25,8 @@ export default function CheckoutPage() {
     const [paymentMethod, setPaymentMethod] = useState<'PROMPTPAY' | 'WALLET'>('PROMPTPAY');
     const [showQR, setShowQR] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [showPendingPopup, setShowPendingPopup] = useState(false);
+    const [showStockErrorPopup, setShowStockErrorPopup] = useState(false);
 
     useEffect(() => {
         const storedProfile = localStorage.getItem('ayuraProfile');
@@ -61,7 +66,8 @@ export default function CheckoutPage() {
                         return {
                             ...ing,
                             baseGrams: bItem.gramsPerWeek,
-                            actualGrams: Math.round(bItem.gramsPerWeek * (orderData.sizeMultiplier || 1.0))
+                            actualGrams: Math.round(bItem.gramsPerWeek * (orderData.sizeMultiplier || 1.0)),
+                            boxNote: bItem.note || '',  // note specific to this ingredient in the set
                         };
                     }).filter((item: any) => item.id); // Filter out if ingredient not found
                     setBoxItems(combined);
@@ -86,7 +92,12 @@ export default function CheckoutPage() {
     // To keep UI simple, let's just show Subtotal = finalPrice - deliveryFee
     // The previous design showed base price and discount separate, but it's cleaner to just show final.
 
+    // Main checkout button
     const handleOrder = async () => {
+        if (!address.trim()) {
+            alert('กรุณาระบุที่อยู่จัดส่ง');
+            return;
+        }
         setIsProcessing(true);
 
         try {
@@ -94,66 +105,81 @@ export default function CheckoutPage() {
             if (!stored) return;
             const sessionData = JSON.parse(stored);
 
-            // Re-verify balance directly with API to avoid localStorage staleness
-            if (paymentMethod === 'WALLET') {
-                const res = await fetch(`/api/user/profile?userId=${sessionData.userId || sessionData.id}`);
-                const data = await res.json();
-                const actualBalance = data.profile?.balance || 0;
-
-                if (actualBalance < (finalPrice + deliveryFee)) {
-                    alert(`ยอดเงินใน Wallet ไม่เพียงพอ (ปัจจุบัน: ฿${actualBalance}) กรุณาเติมเงินเพิ่ม`);
-                    setIsProcessing(false);
-                    return;
-                }
-            }
-
-            if (paymentMethod === 'PROMPTPAY' && !showQR) {
+            if (paymentMethod === 'PROMPTPAY') {
+                // Just open the QR modal
                 setShowQR(true);
                 setIsProcessing(false);
                 return;
             }
 
-            try {
-                const stored = localStorage.getItem('ayuraProfile');
-                if (!stored) return;
-                const sessionData = JSON.parse(stored);
+            // WALLET flow: verify balance then create order
+            const profileRes = await fetch(`/api/user/profile?userId=${sessionData.userId || sessionData.id}`);
+            const profileData = await profileRes.json();
+            const actualBalance = profileData.profile?.balance || 0;
 
-                const res = await fetch('/api/user/orders', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        userId: sessionData.userId || sessionData.id,
-                        customerName: profileName,
-                        address,
-                        totalPrice: finalPrice + deliveryFee,
-                        mealSetId: mealSet?._id || mealSet?.id,
-                        plan,
-                        boxSize,
-                        sizeMultiplier,
-                        paymentMethod
-                    })
-                });
-
-                if (res.ok) {
-                    const result = await res.json();
-                    console.log('Order created:', result.orderId);
-                    setShowQR(false); // Close QR if open
-                    setShowSuccess(true);
-                } else {
-                    const err = await res.json();
-                    alert(`Failed to create order: ${err.error || 'Unknown error'}`);
-                    console.error('Failed to create order', err);
-                }
-            } catch (err) {
-                console.error('Order error', err);
-            } finally {
+            if (actualBalance < (finalPrice + deliveryFee)) {
+                alert(`ยอดเงินใน Wallet ไม่เพียงพอ (ปัจจุบัน: ฿${actualBalance}) กรุณาเติมเงินเพิ่ม`);
                 setIsProcessing(false);
+                return;
             }
-        } catch (error) {
-            console.error('Outer logic error', error);
+
+            await submitOrder(sessionData, 'WALLET');
+        } catch (err) {
+            console.error('Order error', err);
+        } finally {
             setIsProcessing(false);
         }
     };
+
+    // QR confirm button: submit the order as PromptPay
+    const handleConfirmPromptPay = async () => {
+        setIsProcessing(true);
+        try {
+            const stored = localStorage.getItem('ayuraProfile');
+            if (!stored) return;
+            const sessionData = JSON.parse(stored);
+            await submitOrder(sessionData, 'PROMPTPAY');
+        } catch (err) {
+            console.error('PromptPay confirm error', err);
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const submitOrder = async (sessionData: any, method: 'WALLET' | 'PROMPTPAY') => {
+        const res = await fetch('/api/user/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId: sessionData.userId || sessionData.id,
+                customerName: profileName,
+                address,
+                phone,
+                totalPrice: finalPrice + deliveryFee,
+                mealSetId: mealSet?._id || mealSet?.id,
+                mealSetName: mealSet?.name || '',
+                plan,
+                boxSize,
+                sizeMultiplier,
+                paymentMethod: method,
+            })
+        });
+
+        if (res.ok) {
+            setShowQR(false);
+            setShowPendingPopup(true); // Both flows show pending popup
+        } else {
+            const err = await res.json();
+            if (err.error === 'STOCK_ERROR') {
+                setShowQR(false); // Close QR just in case it's somehow open (it shouldn't be yet)
+                setShowStockErrorPopup(true);
+            } else {
+                alert(`เกิดข้อผิดพลาด: ${err.error || err.message || 'Unknown error'}`);
+            }
+            console.error('Failed to create order', err);
+        }
+    };
+
 
     if (loading) {
         return (
@@ -288,28 +314,36 @@ export default function CheckoutPage() {
                             <div className="space-y-3 mb-4 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
                                 {boxItems.length > 0 ? (
                                     boxItems.map((item: any) => (
-                                        <div key={item.id} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 border border-gray-100">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 flex items-center justify-center bg-white rounded shadow-sm text-xl">
-                                                    {item.image}
-                                                </div>
-                                                <div>
-                                                    <div className="text-sm font-semibold">{item.name}</div>
-                                                    <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                                                        ปริมาณต่อสัปดาห์
+                                        <div key={item.id} className="p-2 rounded-lg bg-gray-50 border border-gray-100">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 flex items-center justify-center bg-white rounded shadow-sm text-xl">
+                                                        {item.image}
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-sm font-semibold">{item.name}</div>
+                                                        <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                                                            ปริมาณต่อสัปดาห์
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="text-sm font-bold text-[var(--color-primary-dark)]">
-                                                    {item.actualGrams} กรัม
-                                                </div>
-                                                {sizeMultiplier !== 1.0 && (
-                                                    <div className="text-[10px] text-[var(--color-text-light)]">
-                                                        (×{sizeMultiplier})
+                                                <div className="text-right">
+                                                    <div className="text-sm font-bold text-[var(--color-primary-dark)]">
+                                                        {item.actualGrams} กรัม
                                                     </div>
-                                                )}
+                                                    {sizeMultiplier !== 1.0 && (
+                                                        <div className="text-[10px] text-[var(--color-text-light)]">
+                                                            (×{sizeMultiplier})
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
+                                            {item.boxNote && (
+                                                <div className="mt-1.5 ml-13 flex items-start gap-1 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
+                                                    <span className="shrink-0">📝</span>
+                                                    <span>{item.boxNote}</span>
+                                                </div>
+                                            )}
                                         </div>
                                     ))
                                 ) : (
@@ -355,7 +389,7 @@ export default function CheckoutPage() {
                             </button>
 
                             <p className="text-xs text-[var(--color-text-light)] text-center mt-4 px-2">
-                                <span className="text-[var(--color-primary)] font-semibold">Ayura</span> จัดส่งกล่องสุขภาพทุกวันจันทร์
+                                <span className="text-[var(--color-primary)] font-semibold">Ayura</span> จัดส่งกล่องสุขภาพทุกวัน
                                 ควบคุมคุณภาพความสดใหม่ในทุกรอบส่ง
                             </p>
                         </div>
@@ -397,8 +431,13 @@ export default function CheckoutPage() {
                             PromptPay
                         </div>
                         <div className="bg-white p-4 border-2 border-t-0 border-blue-900 rounded-b-xl mx-4 mb-6 shadow-sm flex flex-col items-center justify-center min-h-[200px]">
-                            <div className="w-40 h-40 bg-gray-200 flex items-center justify-center text-4xl mb-4">
-                                📱
+                            <div className="w-48 h-48 bg-white flex items-center justify-center mb-4 border border-gray-100 rounded-lg overflow-hidden">
+                                <QRCodeSVG
+                                    value={generatePayload(process.env.NEXT_PUBLIC_PROMPTPAY_NUMBER || '0000000000', { amount: finalPrice + deliveryFee })}
+                                    size={180}
+                                    level="L"
+                                    includeMargin={false}
+                                />
                             </div>
                             <div className="text-sm text-gray-500 mb-1">ยอดชำระ</div>
                             <div className="text-3xl font-bold text-[var(--color-primary)]">฿{finalPrice + deliveryFee}</div>
@@ -415,13 +454,43 @@ export default function CheckoutPage() {
                                 ยกเลิก
                             </button>
                             <button
-                                onClick={handleOrder}
+                                onClick={handleConfirmPromptPay}
                                 className="flex-1 py-3 px-4 bg-[var(--color-primary)] text-white rounded-xl font-bold hover:shadow-lg transition-all disabled:opacity-50"
                                 disabled={isProcessing}
                             >
-                                {isProcessing ? 'กำลังตรวจสอบ...' : 'จำลองการจ่ายเงิน'}
+                                {isProcessing ? 'กำลังตรวจสอบ...' : 'ยืนยันการชำระเงิน'}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Pending Approval Popup */}
+            {showPendingPopup && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+                    <div className="glass-card !bg-white p-8 max-w-sm w-full text-center shadow-xl">
+                        <div className="text-7xl mb-6 animate-pulse">⏳</div>
+                        <h2 className="text-2xl font-bold text-[var(--color-primary-dark)] mb-3">
+                            {paymentMethod === 'PROMPTPAY' ? 'รอตรวจสอบยอดเงิน' : 'รอการอนุมัติออเดอร์'}
+                        </h2>
+                        <p className="text-[var(--color-text-light)] mb-6 leading-relaxed">
+                            ระบบได้รับคำสั่งซื้อของคุณแล้ว<br />
+                            {paymentMethod === 'PROMPTPAY' ? (
+                                <strong>กรุณารอ Admin ตรวจสอบยอดเงินและยืนยันรายการ</strong>
+                            ) : (
+                                <strong>กรุณารอ Admin อนุมัติคำสั่งซื้อของคุณ</strong>
+                            )}<br />
+                            โดยปกติใช้เวลาไม่เกิน 24 ชั่วโมง
+                        </p>
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-left">
+                            <p className="text-xs text-yellow-700 font-medium">📋 สิ่งที่ต้องทำ</p>
+                            <p className="text-xs text-yellow-600 mt-1 leading-relaxed">
+                                สถานะจะอัปเดตที่แดชบอร์ดของคุณเมื่อ Admin ยืนยันการชำระเงินเรียบร้อยแล้ว
+                            </p>
+                        </div>
+                        <a href="/dashboard" className="btn-primary w-full justify-center !py-3 shadow-md block">
+                            ไปที่แดชบอร์ด
+                        </a>
                     </div>
                 </div>
             )}

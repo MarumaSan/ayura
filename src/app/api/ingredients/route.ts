@@ -14,7 +14,7 @@ export async function GET(request: Request) {
             query = { category };
         }
 
-        const ingredients = await Ingredient.find(query).sort({ name: 1 });
+        const ingredients = await Ingredient.find(query).sort({ name: 1 }).lean();
 
         return NextResponse.json({ data: ingredients });
     } catch (error: any) {

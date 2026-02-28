@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import { User } from '@/models/User';
+import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
     try {
@@ -15,8 +16,7 @@ export async function POST(request: Request) {
             );
         }
 
-        // Basic query (In production this would compare hashed passwords)
-        const user = await User.findOne({ email, password });
+        const user = await User.findOne({ email: email.trim().toLowerCase() });
 
         if (!user) {
             return NextResponse.json(
@@ -25,10 +25,25 @@ export async function POST(request: Request) {
             );
         }
 
-        // Determine if profile is complete (fallback for legacy or seeded users)
+        // Compare hashed password — also allow plaintext match for legacy users
+        let passwordMatch = false;
+        try {
+            passwordMatch = await bcrypt.compare(password, user.password);
+        } catch {
+            // If stored password isn't a bcrypt hash, fall back to direct comparison
+            // This handles legacy users who registered before bcrypt was added
+            passwordMatch = user.password === password;
+        }
+
+        if (!passwordMatch) {
+            return NextResponse.json(
+                { error: 'Invalid credentials' },
+                { status: 401 }
+            );
+        }
+
         const isComplete = user.isProfileComplete || (user.weight && user.weight > 0 && user.age && user.age > 0);
 
-        // Success (In production this would generate a JWT session)
         return NextResponse.json({
             message: 'Login successful',
             user: {

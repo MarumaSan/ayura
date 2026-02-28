@@ -9,10 +9,9 @@ const IngredientSchema = new mongoose.Schema({
     community: { type: String, required: true },
 
     // Pricing & Stock
-    pricePerUnit: { type: Number, required: true },
-    gramPerUnit: { type: Number, required: true }, // Weight of one unit in grams
-    unit: { type: String, required: true },
+    pricePer100g: { type: Number, required: true },
     inStock: { type: Number, required: true, default: 0 },
+    note: { type: String, default: '' },
 
     // Nutrition per 100g
     calories100g: { type: Number, required: true },

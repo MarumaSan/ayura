@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
-import { User } from '@/models/User';
+import { TopupRequest } from '@/models/TopupRequest';
 
 export async function POST(request: Request) {
     try {
@@ -9,30 +9,21 @@ export async function POST(request: Request) {
         const body = await request.json();
         const { userId, amount } = body;
 
-        if (!userId || !amount) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+        if (!userId || !amount || amount <= 0) {
+            return NextResponse.json({ error: 'Missing or invalid fields' }, { status: 400 });
         }
 
-        // Ensure backwards compatibility with manual raw mongo inserts
-        const query = userId.length === 24
-            ? { $or: [{ id: userId }, { _id: userId }] }
-            : { id: userId };
+        const topupRequest = await TopupRequest.create({
+            userId,
+            amount: Number(amount),
+            status: 'pending',
+        });
 
-        const updatedUser = await User.findOneAndUpdate(
-            query,
-            { $inc: { balance: amount } },
-            { new: true }
-        );
-
-        if (!updatedUser) {
-            return NextResponse.json({ error: 'User not found' }, { status: 404 });
-        }
-
-        return NextResponse.json({ success: true, balance: updatedUser.balance });
+        return NextResponse.json({ success: true, requestId: topupRequest._id });
     } catch (error: any) {
-        console.error('Topup error:', error);
+        console.error('Topup request error:', error);
         return NextResponse.json(
-            { error: 'Failed to top up', details: error.message },
+            { error: 'Failed to create topup request', details: error.message },
             { status: 500 }
         );
     }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import { MealSet } from '@/models/MealSet';
+import mongoose from 'mongoose';
 
 export async function GET(
     request: Request,
@@ -9,8 +10,13 @@ export async function GET(
     try {
         await connectToDatabase();
         const { id } = await params;
-        const mealSet = await MealSet.findOne({ id }).populate('recipes');
 
+        // Try short string id first, then MongoDB _id
+        let mealSet = await MealSet.findOne({ id });
+
+        if (!mealSet && mongoose.isValidObjectId(id)) {
+            mealSet = await MealSet.findById(id);
+        }
 
         if (!mealSet) {
             return NextResponse.json({ error: 'MealSet not found' }, { status: 404 });

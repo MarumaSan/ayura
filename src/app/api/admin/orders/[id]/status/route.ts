@@ -18,9 +18,16 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
             ? { $or: [{ id: params.id }, { _id: params.id }] }
             : { id: params.id };
 
+        const updateData: any = { $set: { status } };
+
+        // When status changes to Delivered, record the exact delivery date
+        if (status === 'จัดส่งสำเร็จ') {
+            updateData.$set.deliveryDate = new Date();
+        }
+
         const updatedOrder = await Order.findOneAndUpdate(
             query,
-            { $set: { status } },
+            updateData,
             { new: true }
         );
 

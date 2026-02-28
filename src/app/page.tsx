@@ -67,7 +67,7 @@ export default function Home() {
             <div className="animate-fade-in">
               <div className="inline-flex items-center gap-2 bg-white/10 rounded-full px-4 py-2 mb-6 backdrop-blur-sm">
                 <span className="animate-pulse-glow w-2 h-2 bg-[var(--color-secondary-light)] rounded-full" />
-                <span className="text-sm text-white/90">Powered by AI 🤖</span>
+                <span className="text-sm text-white/90">สุขภาพที่ดีเริ่มด้วยตัวคุณ 🫶🏻</span>
               </div>
 
               <h1 className="text-4xl lg:text-6xl font-bold leading-tight mb-6">

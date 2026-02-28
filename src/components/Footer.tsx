@@ -16,7 +16,7 @@ export default function Footer() {
                         </div>
                         <p className="text-sm text-white/70 leading-relaxed">
                             กล่องสุขภาพจากธรรมชาติ ถึงมือคุณทุกสัปดาห์
-                            ด้วย AI จับคู่วัตถุดิบที่เหมาะกับร่างกายคุณ
+                            ด้วย Algorithm จับคู่วัตถุดิบที่เหมาะกับร่างกายคุณ
                         </p>
                     </div>
 
@@ -79,7 +79,7 @@ export default function Footer() {
                 {/* Divider */}
                 <div className="mt-10 pt-6 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
                     <p className="text-xs text-white/50">
-                        © 2024 Ayura (อายุระ). สร้างสรรค์เพื่อชุมชนและสุขภาพที่ดี 🌱
+                        © 2026 Ayura (อายุระ). สร้างสรรค์เพื่อชุมชนและสุขภาพที่ดี 🌱
                     </p>
                     <div className="flex gap-4">
                         <span className="text-lg cursor-pointer hover:scale-110 transition-transform">
