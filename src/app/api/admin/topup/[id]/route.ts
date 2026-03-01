@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
     try {
@@ -7,7 +7,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         const { action } = body; // 'approve' | 'reject'
         const { id } = await context.params;
 
-        const { data: topupReq, error: reqError } = await supabase
+        const { data: topupReq, error: reqError } = await supabaseAdmin
             .from('topup_requests')
             .select('*')
             .eq('id', id)
@@ -24,7 +24,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
             const { user_id, amount } = topupReq;
 
             // 1. Get current user balance
-            const { data: userData, error: userGetError } = await supabase
+            const { data: userData, error: userGetError } = await supabaseAdmin
                 .from('users')
                 .select('balance')
                 .eq('id', user_id)
@@ -37,7 +37,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
             // 2. Add amount and update user
             const newBalance = (userData.balance || 0) + amount;
 
-            const { error: userUpdateError } = await supabase
+            const { error: userUpdateError } = await supabaseAdmin
                 .from('users')
                 .update({ balance: newBalance })
                 .eq('id', user_id);
@@ -47,7 +47,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
             }
 
             // 3. Update request status
-            const { error: statusUpdateError } = await supabase
+            const { error: statusUpdateError } = await supabaseAdmin
                 .from('topup_requests')
                 .update({ status: 'approved' })
                 .eq('id', id);
@@ -58,7 +58,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
             return NextResponse.json({ success: true, newBalance });
         } else if (action === 'reject') {
-            const { error } = await supabase
+            const { error } = await supabaseAdmin
                 .from('topup_requests')
                 .update({ status: 'rejected' })
                 .eq('id', id);

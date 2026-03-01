@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: Request) {
     try {
-        const { data: ingredients, error } = await supabase
+        const { data: ingredients, error } = await supabaseAdmin
             .from('ingredients')
             .select('*')
             .order('name', { ascending: true });
@@ -37,9 +37,19 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
 
-        const newId = `ing-${crypto.randomUUID().split('-')[0]}`;
+        // Generate ID from English name: lowercase with hyphens
+        const generateIdFromName = (name: string): string => {
+            return name
+                .toLowerCase()
+                .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
+                .replace(/\s+/g, '-') // Replace spaces with hyphens
+                .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+                .trim();
+        };
 
-        const { data: newIngredient, error } = await supabase
+        const newId = generateIdFromName(body.nameEnglish || body.name || 'ingredient');
+
+        const { data: newIngredient, error } = await supabaseAdmin
             .from('ingredients')
             .insert({
                 id: newId,

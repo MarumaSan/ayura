@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const statusParam = searchParams.get('status');
 
-        let query = supabase
+        let query = supabaseAdmin
             .from('orders')
             .select('*')
             .order('created_at', { ascending: false });

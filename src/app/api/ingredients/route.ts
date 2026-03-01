@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const categoryParam = searchParams.get('category');
 
-        let query = supabase
+        let query = supabaseAdmin
             .from('ingredients')
             .select('*')
             .order('name', { ascending: true });

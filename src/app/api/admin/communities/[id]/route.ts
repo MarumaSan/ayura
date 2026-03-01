@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
     try {
@@ -19,7 +19,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
             }
         });
 
-        const { data: updated, error } = await supabase
+        const { data: updated, error } = await supabaseAdmin
             .from('communities')
             .update(updatePayload)
             .eq('id', params.id)
@@ -45,7 +45,7 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
     try {
         const params = await context.params;
 
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
             .from('communities')
             .delete()
             .eq('id', params.id);

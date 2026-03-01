@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET() {
     try {
-        const { data: recipes, error: rError } = await supabase
+        const { data: recipes, error: rError } = await supabaseAdmin
             .from('recipes')
             .select('*')
             .order('created_at', { ascending: false });
@@ -12,7 +12,7 @@ export async function GET() {
             return NextResponse.json({ success: false, error: rError.message }, { status: 500 });
         }
 
-        const { data: allIngsItems, error: rbiError } = await supabase
+        const { data: allIngsItems, error: rbiError } = await supabaseAdmin
             .from('recipe_ingredients')
             .select('*');
 
@@ -50,7 +50,7 @@ async function calcNutrition(recipeIngredients: { ingredientId: string; gramsUse
     }
 
     const ids = recipeIngredients.map((r) => r.ingredientId);
-    const { data: ingredients } = await supabase
+    const { data: ingredients } = await supabaseAdmin
         .from('ingredients')
         .select('*')
         .in('id', ids);
@@ -79,19 +79,17 @@ async function calcNutrition(recipeIngredients: { ingredientId: string; gramsUse
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const newId = body.id || `recipe-${crypto.randomUUID().split('-')[0]}`;
         const avgNutrition = await calcNutrition(body.recipeIngredients || []);
 
-        const { data: newRecipe, error: insertError } = await supabase
+        const { data: newRecipe, error: insertError } = await supabaseAdmin
             .from('recipes')
             .insert({
-                id: newId,
                 name: body.name,
                 image: body.image || '🍽️',
                 meal_type: body.mealType || 'เช้า',
                 cook_time: body.cookTime || 20,
                 servings: body.servings || 1,
-                calories: avgNutrition.calories, // store main calories
+                calories: avgNutrition.calories,
                 steps: body.steps || []
             })
             .select()
@@ -103,19 +101,18 @@ export async function POST(req: Request) {
 
         if (body.recipeIngredients && body.recipeIngredients.length > 0) {
             const rxPayload = body.recipeIngredients.map((ri: any) => ({
-                recipe_id: newId,
+                recipe_id: newRecipe.id,
                 ingredient_id: ri.ingredientId,
                 grams_used: ri.gramsUsed,
                 note: ri.note || ''
             }));
 
-            const { error: rxError } = await supabase
+            const { error: rxError } = await supabaseAdmin
                 .from('recipe_ingredients')
                 .insert(rxPayload);
 
             if (rxError) {
                 console.error("Error inserting recipe_ingredients:", rxError);
-                // Return success anyway, or handle partial failure. Let's return the error so we know it fails.
                 return NextResponse.json({ success: false, error: 'Recipe created but ingredients failed: ' + rxError.message }, { status: 500 });
             }
         }

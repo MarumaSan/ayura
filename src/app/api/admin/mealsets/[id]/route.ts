@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 async function calcNutrition(boxIngredients: { ingredientId: string; gramsPerWeek: number }[]) {
     if (!boxIngredients || boxIngredients.length === 0) {
@@ -8,7 +8,7 @@ async function calcNutrition(boxIngredients: { ingredientId: string; gramsPerWee
 
     const ids = boxIngredients.map((b) => b.ingredientId);
 
-    const { data: ingredients } = await supabase
+    const { data: ingredients } = await supabaseAdmin
         .from('ingredients')
         .select('*')
         .in('id', ids);
@@ -56,7 +56,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             }
         });
 
-        const { data: updated, error } = await supabase
+        const { data: updated, error } = await supabaseAdmin
             .from('mealsets')
             .update(updatePayload)
             .eq('id', id)
@@ -70,7 +70,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         // Handle boxIngredients separately if provided
         if (body.boxIngredients) {
             // Delete existing
-            await supabase
+            await supabaseAdmin
                 .from('mealset_box_ingredients')
                 .delete()
                 .eq('mealset_id', id);
@@ -84,7 +84,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
                     note: bi.note || ''
                 }));
 
-                await supabase
+                await supabaseAdmin
                     .from('mealset_box_ingredients')
                     .insert(boxIngredientsPayload);
             }
@@ -111,7 +111,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
         const hardDelete = url.searchParams.get('hard') === 'true';
 
         if (hardDelete) {
-            const { error } = await supabase
+            const { error } = await supabaseAdmin
                 .from('mealsets')
                 .delete()
                 .eq('id', id);
@@ -120,7 +120,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
                 return NextResponse.json({ success: false, error: 'Failed to hard delete: ' + error.message }, { status: 500 });
             }
         } else {
-            const { data: updated, error } = await supabase
+            const { data: updated, error } = await supabaseAdmin
                 .from('mealsets')
                 .update({ is_active: false })
                 .eq('id', id)

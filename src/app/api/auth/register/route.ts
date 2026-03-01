@@ -1,15 +1,44 @@
-import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { NextRequest, NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
+import { withRateLimit } from '@/lib/rateLimit';
 
-export async function POST(request: Request) {
+// Input validation functions
+function validateEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
+
+function validateName(name: string): boolean {
+    return name.trim().length >= 2 && name.trim().length <= 100;
+}
+
+function sanitizeInput(input: string): string {
+    return input.trim().replace(/[<>\"'&]/g, '');
+}
+
+async function registerHandler(request: NextRequest) {
     try {
         const { name, email, password } = await request.json();
 
         if (!name || !email || !password) {
             return NextResponse.json(
                 { error: 'Name, email, and password are required' },
+                { status: 400 }
+            );
+        }
+
+        // Validate inputs
+        if (!validateName(name)) {
+            return NextResponse.json(
+                { error: 'Name must be between 2 and 100 characters' },
+                { status: 400 }
+            );
+        }
+
+        if (!validateEmail(email)) {
+            return NextResponse.json(
+                { error: 'Invalid email format' },
                 { status: 400 }
             );
         }
@@ -22,10 +51,14 @@ export async function POST(request: Request) {
             );
         }
 
-        const { data: existingUser } = await supabase
+        // Sanitize inputs
+        const sanitizedName = sanitizeInput(name);
+        const sanitizedEmail = email.trim().toLowerCase();
+
+        const { data: existingUser } = await supabaseAdmin
             .from('users')
             .select('id')
-            .eq('email', email.trim().toLowerCase())
+            .eq('email', sanitizedEmail)
             .single();
 
         if (existingUser) {
@@ -35,14 +68,14 @@ export async function POST(request: Request) {
             );
         }
 
-        // Hash password
+        // Hash password with bcrypt (cost factor 12)
         const hashedPassword = await bcrypt.hash(password, 12);
 
-        const { data: newUser, error } = await supabase
+        const { data: newUser, error } = await supabaseAdmin
             .from('users')
             .insert({
-                name: name.trim(),
-                email: email.trim().toLowerCase(),
+                name: sanitizedName,
+                email: sanitizedEmail,
                 password: hashedPassword,
                 is_profile_complete: false,
                 points: 10,
@@ -75,4 +108,6 @@ export async function POST(request: Request) {
         );
     }
 }
+
+export const POST = withRateLimit(registerHandler, true);
 

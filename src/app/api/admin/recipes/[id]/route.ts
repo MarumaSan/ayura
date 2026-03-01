@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 async function calcNutrition(recipeIngredients: { ingredientId: string; gramsUsed: number }[]) {
     if (!recipeIngredients || recipeIngredients.length === 0) {
@@ -7,7 +7,7 @@ async function calcNutrition(recipeIngredients: { ingredientId: string; gramsUse
     }
 
     const ids = recipeIngredients.map((r) => r.ingredientId);
-    const { data: ingredients } = await supabase
+    const { data: ingredients } = await supabaseAdmin
         .from('ingredients')
         .select('*')
         .in('id', ids);
@@ -57,7 +57,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             }
         });
 
-        const { data: updated, error } = await supabase
+        const { data: updated, error } = await supabaseAdmin
             .from('recipes')
             .update(updatePayload)
             .eq('id', id)
@@ -71,7 +71,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         // Handle recipeIngredients correctly
         if (body.recipeIngredients) {
             // Delete old mappings
-            await supabase
+            await supabaseAdmin
                 .from('recipe_ingredients')
                 .delete()
                 .eq('recipe_id', id);
@@ -85,7 +85,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
                     note: ri.note || ''
                 }));
 
-                const { error: rxError } = await supabase
+                const { error: rxError } = await supabaseAdmin
                     .from('recipe_ingredients')
                     .insert(rxPayload);
 
@@ -117,7 +117,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
         // We will just physically wipe them since recipes don't strictly have 'is_active'.
         // Wait, the recipes table doesn't have `is_active`. We will always hard delete.
 
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
             .from('recipes')
             .delete()
             .eq('id', id);

@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
+import { withRateLimit } from '@/lib/rateLimit';
+import { NextRequest } from 'next/server';
 
-export async function GET() {
+async function getAdminUsersHandler(request: NextRequest) {
     try {
-        const { data: users, error } = await supabase
+        const { data: users, error } = await supabaseAdmin
             .from('users')
             .select('id, name, email, role, phone, age, weight, height, gender, activity_level, target_bmi, health_goals, food_allergies, balance, points, is_profile_complete, is_admin, created_at, updated_at')
             .order('created_at', { ascending: false });
@@ -29,4 +32,6 @@ export async function GET() {
         return NextResponse.json({ error: 'Failed to fetch users', details: error.message }, { status: 500 });
     }
 }
+
+export const GET = withRateLimit(withAdminAuth(getAdminUsersHandler), false);
 

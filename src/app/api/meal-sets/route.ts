@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {
-        const { data: mealSets, error } = await supabase
+        const { data: mealSets, error } = await supabaseAdmin
             .from('mealsets')
             .select(`
                 *,

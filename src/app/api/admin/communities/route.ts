@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: Request) {
     try {
-        const { data: communities, error } = await supabase
+        const { data: communities, error } = await supabaseAdmin
             .from('communities')
             .select('*')
             .order('name', { ascending: true });
@@ -19,29 +19,9 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
 
-        // Generate ID
-        const { data: latestCommunity } = await supabase
-            .from('communities')
-            .select('id')
-            .order('id', { ascending: false })
-            .limit(1)
-            .single();
-
-        let nextNum = 1;
-        if (latestCommunity && latestCommunity.id.startsWith('com-')) {
-            const numStr = latestCommunity.id.replace('com-', '');
-            const parsed = parseInt(numStr, 10);
-            if (!isNaN(parsed)) {
-                nextNum = parsed + 1;
-            }
-        }
-
-        const newId = `com-${String(nextNum).padStart(3, '0')}`;
-
-        const { data: newCommunity, error } = await supabase
+        const { data: newCommunity, error } = await supabaseAdmin
             .from('communities')
             .insert({
-                id: newId,
                 name: body.name,
                 address: body.address,
                 notes: body.notes

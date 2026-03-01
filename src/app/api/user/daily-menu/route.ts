@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getThaiDate, formatThaiDate } from '@/lib/dateUtils';
 
 // Simple deterministic hash from a string to produce a number
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
         }
 
         // 1. Get box ingredients for this meal set
-        const { data: boxItems } = await supabase
+        const { data: boxItems } = await supabaseAdmin
             .from('mealset_box_ingredients')
             .select('ingredient_id')
             .eq('mealset_id', mealSetId);
@@ -41,7 +41,7 @@ export async function GET(request: Request) {
         const boxIngredientIds = new Set(boxItems.map((bi: any) => bi.ingredient_id));
 
         // 2. Fetch ALL recipes along with their ingredients
-        const { data: allRecipesObj } = await supabase
+        const { data: allRecipesObj } = await supabaseAdmin
             .from('recipes')
             .select(`
                 *,

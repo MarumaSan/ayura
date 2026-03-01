@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 // Helper: calculate avgNutrition from boxIngredients
 async function calcNutrition(boxIngredients: { ingredientId: string; gramsPerWeek: number }[]) {
@@ -9,7 +9,7 @@ async function calcNutrition(boxIngredients: { ingredientId: string; gramsPerWee
 
     const ids = boxIngredients.map((b) => b.ingredientId);
 
-    const { data: ingredients } = await supabase
+    const { data: ingredients } = await supabaseAdmin
         .from('ingredients')
         .select('*')
         .in('id', ids);
@@ -39,7 +39,7 @@ async function calcNutrition(boxIngredients: { ingredientId: string; gramsPerWee
 
 export async function GET() {
     try {
-        const { data: mealsets, error } = await supabase
+        const { data: mealsets, error } = await supabaseAdmin
             .from('mealsets')
             .select('*')
             .order('created_at', { ascending: false });
@@ -49,7 +49,7 @@ export async function GET() {
         const allMealsets = mealsets || [];
 
         // Fetch box ingredients
-        const { data: boxItems } = await supabase
+        const { data: boxItems } = await supabaseAdmin
             .from('mealset_box_ingredients')
             .select('*');
 
@@ -102,7 +102,7 @@ export async function POST(req: Request) {
             avg_nutrition: avgNutrition,
         };
 
-        const { data: newMealset, error: insertError } = await supabase
+        const { data: newMealset, error: insertError } = await supabaseAdmin
             .from('mealsets')
             .insert(mealsetPayload)
             .select()
@@ -121,7 +121,7 @@ export async function POST(req: Request) {
                 note: bi.note || ''
             }));
 
-            const { error: boxError } = await supabase
+            const { error: boxError } = await supabaseAdmin
                 .from('mealset_box_ingredients')
                 .insert(boxIngredientsPayload);
 

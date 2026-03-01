@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getThaiDate } from '@/lib/dateUtils';
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -19,7 +19,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
             updateData.delivery_date = getThaiDate().toISOString();
         }
 
-        const { data: updatedOrder, error } = await supabase
+        const { data: updatedOrder, error } = await supabaseAdmin
             .from('orders')
             .update(updateData)
             .eq('id', params.id)

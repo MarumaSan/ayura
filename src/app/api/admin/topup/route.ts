@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET() {
     try {
-        const { data: requests, error } = await supabase
+        const { data: requests, error } = await supabaseAdmin
             .from('topup_requests')
             .select('*')
             .order('created_at', { ascending: false });
@@ -16,7 +16,7 @@ export async function GET() {
 
         let users = [];
         if (userIds.length > 0) {
-            const { data } = await supabase
+            const { data } = await supabaseAdmin
                 .from('users')
                 .select('*')
                 .in('id', userIds);

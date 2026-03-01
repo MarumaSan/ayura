@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
     try {
@@ -28,7 +28,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
             }
         });
 
-        const { data: updated, error } = await supabase
+        const { data: updated, error } = await supabaseAdmin
             .from('ingredients')
             .update(updatePayload)
             .eq('id', params.id)
@@ -65,18 +65,65 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
     try {
         const params = await context.params;
 
-        const { error } = await supabase
+        // Check if ingredient is used in recipes
+        const { data: recipeUsage, error: recipeError } = await supabaseAdmin
+            .from('recipe_ingredients')
+            .select('recipe_id')
+            .eq('ingredient_id', params.id)
+            .limit(1);
+
+        // Check if ingredient is used in mealset boxes
+        const { data: mealsetUsage, error: mealsetError } = await supabaseAdmin
+            .from('mealset_box_ingredients')
+            .select('mealset_id')
+            .eq('ingredient_id', params.id)
+            .limit(1);
+
+        if (recipeError || mealsetError) {
+            return NextResponse.json({ 
+                success: false, 
+                error: 'Failed to check ingredient usage' 
+            }, { status: 500 });
+        }
+
+        // If ingredient is used, return detailed error
+        if (recipeUsage && recipeUsage.length > 0) {
+            return NextResponse.json({ 
+                success: false, 
+                error: 'ไม่สามารถลบวัตถุดิบนี้ได้เนื่องจากถูกใช้ในสูตรอาหาร',
+                details: 'กรุณาลบวัตถุดิบออกจากสูตรก่อน',
+                type: 'foreign_key_constraint'
+            }, { status: 400 });
+        }
+
+        if (mealsetUsage && mealsetUsage.length > 0) {
+            return NextResponse.json({ 
+                success: false, 
+                error: 'ไม่สามารถลบวัตถุดิบนี้ได้เนื่องจากถูกใช้ในเซ็ตอาหาร',
+                details: 'กรุณาลบวัตถุดิบออกจากเซ็ตอาหารก่อน',
+                type: 'foreign_key_constraint'
+            }, { status: 400 });
+        }
+
+        // Safe to delete
+        const { error } = await supabaseAdmin
             .from('ingredients')
             .delete()
             .eq('id', params.id);
 
         if (error) {
-            return NextResponse.json({ success: false, error: 'Delete failed' }, { status: 500 });
+            return NextResponse.json({ 
+                success: false, 
+                error: 'Delete failed: ' + error.message 
+            }, { status: 500 });
         }
 
         return NextResponse.json({ success: true });
     } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        return NextResponse.json({ 
+            success: false, 
+            error: error.message 
+        }, { status: 500 });
     }
 }
 

@@ -1,10 +1,22 @@
-import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { NextRequest, NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
+import { withRateLimit } from '@/lib/rateLimit';
 
-export async function POST(request: Request) {
+// Input validation
+function validateEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
+
+function sanitizeInput(input: string): string {
+    return input.trim().replace(/[<>]/g, '');
+}
+
+async function loginHandler(request: NextRequest) {
     try {
-        const { email, password } = await request.json();
+        const body = await request.json();
+        const { email, password } = body;
 
         if (!email || !password) {
             return NextResponse.json(
@@ -13,10 +25,22 @@ export async function POST(request: Request) {
             );
         }
 
-        const { data: user, error } = await supabase
+        // Validate email format
+        if (!validateEmail(email)) {
+            return NextResponse.json(
+                { error: 'Invalid email format' },
+                { status: 400 }
+            );
+        }
+
+        // Sanitize inputs
+        const sanitizedEmail = sanitizeInput(email).toLowerCase();
+        const sanitizedPassword = password.trim();
+
+        const { data: user, error } = await supabaseAdmin
             .from('users')
-            .select('*')
-            .eq('email', email.trim().toLowerCase())
+            .select('id, name, email, password, points, is_profile_complete, weight, height, age, gender, health_goal, balance, role')
+            .eq('email', sanitizedEmail)
             .single();
 
         if (error || !user) {
@@ -26,19 +50,24 @@ export async function POST(request: Request) {
             );
         }
 
-        // Compare hashed password
+        // Compare hashed password - DO NOT expose password in response
         let passwordMatch = false;
-        const cleanPassword = password.trim();
         try {
-            if (user.password.startsWith('$')) {
-                passwordMatch = await bcrypt.compare(cleanPassword, user.password);
+            if (user.password && user.password.startsWith('$2')) {
+                passwordMatch = await bcrypt.compare(sanitizedPassword, user.password);
             } else {
-                // Legacy plaintext fallback
-                passwordMatch = user.password === cleanPassword;
+                // Legacy plaintext fallback - reject for security
+                return NextResponse.json(
+                    { error: 'Account requires password reset. Please use forgot password.' },
+                    { status: 401 }
+                );
             }
         } catch (err) {
             console.error('Password comparison error:', err);
-            passwordMatch = user.password === cleanPassword;
+            return NextResponse.json(
+                { error: 'Authentication failed' },
+                { status: 401 }
+            );
         }
 
         if (!passwordMatch) {
@@ -75,4 +104,6 @@ export async function POST(request: Request) {
         );
     }
 }
+
+export const POST = withRateLimit(loginHandler, true);
 

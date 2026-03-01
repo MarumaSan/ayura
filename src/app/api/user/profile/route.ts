@@ -1,19 +1,41 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
+
+// Input validation and sanitization
+function sanitizeString(input: string, maxLength: number = 500): string {
+    if (typeof input !== 'string') return '';
+    return input.trim().replace(/[<>\"'&]/g, '').substring(0, maxLength);
+}
+
+function validateUserId(userId: string): boolean {
+    // Now userId is bigint (numeric string), not UUID
+    return /^\d+$/.test(userId);
+}
+
+function validatePhone(phone: string): boolean {
+    if (!phone) return true; // Phone is optional
+    const phoneRegex = /^[0-9\-]{9,15}$/;
+    return phoneRegex.test(phone.replace(/\s/g, ''));
+}
+
+function validateNumber(value: any, min: number, max: number): boolean {
+    const num = Number(value);
+    return !isNaN(num) && num >= min && num <= max;
+}
 
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get('userId');
 
-        if (!userId) {
-            return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+        if (!userId || !validateUserId(userId)) {
+            return NextResponse.json({ error: 'Valid User ID is required' }, { status: 400 });
         }
 
-        const { data: user, error } = await supabase
+        const { data: user, error } = await supabaseAdmin
             .from('users')
-            .select('*')
-            .eq('id', userId)
+            .select('id, name, email, phone, age, gender, weight, height, activity_level, bio, health_goal, points, streak, balance, is_profile_complete, role')
+            .eq('id', parseInt(userId, 10))
             .single();
 
         if (error || !user) {
@@ -68,28 +90,51 @@ export async function PUT(request: Request) {
             healthGoals
         } = body;
 
-        if (!userId) {
-            return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+        if (!userId || !validateUserId(userId)) {
+            return NextResponse.json({ error: 'Valid User ID is required' }, { status: 400 });
         }
 
-        const healthGoalString = Array.isArray(healthGoals) ? healthGoals.join(',') : healthGoals;
+        // Validate and sanitize inputs
+        const sanitizedName = name ? sanitizeString(name, 100) : undefined;
+        const sanitizedPhone = phone ? sanitizeString(phone, 20) : undefined;
+        const sanitizedBio = bio ? sanitizeString(bio, 1000) : undefined;
 
-        const { data: updatedUser, error } = await supabase
+        if (sanitizedPhone && !validatePhone(sanitizedPhone)) {
+            return NextResponse.json({ error: 'Invalid phone number format' }, { status: 400 });
+        }
+
+        if (age !== undefined && !validateNumber(age, 1, 120)) {
+            return NextResponse.json({ error: 'Age must be between 1 and 120' }, { status: 400 });
+        }
+
+        if (weight !== undefined && !validateNumber(weight, 1, 500)) {
+            return NextResponse.json({ error: 'Weight must be between 1 and 500 kg' }, { status: 400 });
+        }
+
+        if (height !== undefined && !validateNumber(height, 1, 300)) {
+            return NextResponse.json({ error: 'Height must be between 1 and 300 cm' }, { status: 400 });
+        }
+
+        const healthGoalString = Array.isArray(healthGoals) 
+            ? healthGoals.map(g => sanitizeString(g, 50)).join(',') 
+            : healthGoals ? sanitizeString(healthGoals, 200) : undefined;
+
+        const { data: updatedUser, error } = await supabaseAdmin
             .from('users')
             .update({
-                name,
-                phone,
+                name: sanitizedName,
+                phone: sanitizedPhone,
                 age,
-                gender,
+                gender: gender ? sanitizeString(gender, 20) : undefined,
                 weight,
                 height,
-                activity_level: activityLevel,
-                bio,
+                activity_level: activityLevel ? sanitizeString(activityLevel, 50) : undefined,
+                bio: sanitizedBio,
                 health_goal: healthGoalString,
-                is_profile_complete: true // Mark as complete since they updated it
+                is_profile_complete: true
             })
-            .eq('id', userId)
-            .select()
+            .eq('id', parseInt(userId, 10))
+            .select('id, name, email, phone, age, gender, weight, height, activity_level, bio, health_goal, points, streak, balance, is_profile_complete, role')
             .single();
 
         if (error || !updatedUser) {

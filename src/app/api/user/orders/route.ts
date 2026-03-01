@@ -1,6 +1,21 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getThaiDate, formatThaiIdDate } from '@/lib/dateUtils';
+
+// Input validation functions
+function validateUserId(userId: string): boolean {
+    // Now userId is bigint (numeric string), not UUID
+    return /^\d+$/.test(userId);
+}
+
+function sanitizeString(input: string, maxLength: number = 500): string {
+    return input.trim().replace(/[<>\"'&]/g, '').substring(0, maxLength);
+}
+
+function validatePhone(phone: string): boolean {
+    const phoneRegex = /^[0-9\-]{9,15}$/;
+    return phoneRegex.test(phone.replace(/\s/g, ''));
+}
 
 export async function POST(request: Request) {
     try {
@@ -11,8 +26,32 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing required order fields' }, { status: 400 });
         }
 
+        // Validate userId format
+        if (!validateUserId(userId)) {
+            return NextResponse.json({ error: 'Invalid user ID format' }, { status: 400 });
+        }
+
+        // Validate payment method
+        if (!['PROMPTPAY', 'WALLET'].includes(paymentMethod)) {
+            return NextResponse.json({ error: 'Invalid payment method' }, { status: 400 });
+        }
+
+        // Validate plan
+        if (!['weekly', 'monthly'].includes(plan)) {
+            return NextResponse.json({ error: 'Invalid plan type' }, { status: 400 });
+        }
+
+        // Sanitize inputs
+        const sanitizedAddress = sanitizeString(address, 1000);
+        const sanitizedPhone = phone ? sanitizeString(phone, 20) : '';
+        const sanitizedCustomerName = sanitizeString(customerName, 100);
+
+        if (sanitizedPhone && !validatePhone(sanitizedPhone)) {
+            return NextResponse.json({ error: 'Invalid phone number format' }, { status: 400 });
+        }
+
         // 1. Resolve mealSet
-        const { data: ms, error: msError } = await supabase
+        const { data: ms, error: msError } = await supabaseAdmin
             .from('mealsets')
             .select('*')
             .eq('id', mealSetId)
@@ -23,7 +62,7 @@ export async function POST(request: Request) {
         }
 
         // Fetch box ingredients for this meal set
-        const { data: boxItems } = await supabase
+        const { data: boxItems } = await supabaseAdmin
             .from('mealset_box_ingredients')
             .select('*')
             .eq('mealset_id', ms.id);
@@ -38,7 +77,7 @@ export async function POST(request: Request) {
         const ingredientUpdates = [];
         for (const item of boxIngredients) {
             const requiredGrams = item.grams_per_week * requiredMultiplier;
-            const { data: ingredient } = await supabase
+            const { data: ingredient } = await supabaseAdmin
                 .from('ingredients')
                 .select('*')
                 .eq('id', item.ingredient_id)
@@ -58,26 +97,18 @@ export async function POST(request: Request) {
             });
         }
 
-        // 3. Handle Wallet Payment
+        // 3. Handle Wallet Payment - Use atomic function
         if (paymentMethod === 'WALLET') {
-            const { data: user } = await supabase
-                .from('users')
-                .select('*')
-                .eq('id', userId)
-                .single();
+            const { data: success, error: deductError } = await supabaseAdmin.rpc('deduct_wallet_balance', {
+                p_user_id: userId,
+                p_amount: totalPrice
+            });
 
-            if (!user) {
-                return NextResponse.json({ error: 'User not found' }, { status: 404 });
+            if (deductError || !success) {
+                return NextResponse.json({ 
+                    error: 'Insufficient balance or wallet error' 
+                }, { status: 400 });
             }
-            if ((user.balance || 0) < totalPrice) {
-                return NextResponse.json({ error: 'Insufficient balance' }, { status: 400 });
-            }
-
-            // Deduct balance
-            await supabase
-                .from('users')
-                .update({ balance: user.balance - totalPrice })
-                .eq('id', userId);
         }
 
         const d = getThaiDate();
@@ -89,7 +120,7 @@ export async function POST(request: Request) {
 
         // 4. Target Delivery Date Logic
         let targetDeliveryDate = null;
-        const { data: activeOrdersList } = await supabase
+        const { data: activeOrdersList } = await supabaseAdmin
             .from('orders')
             .select('*')
             .eq('user_id', userId)
@@ -112,11 +143,11 @@ export async function POST(request: Request) {
         }
 
         // 5. Create Order
-        const { data: newOrder, error: orderError } = await supabase
+        const { data: newOrder, error: orderError } = await supabaseAdmin
             .from('orders')
             .insert({
                 id: orderIdStr,
-                customer_name: customerName,
+                customer_name: sanitizedCustomerName,
                 user_id: userId,
                 mealset_id: ms.id,
                 mealset_name: mealSetName,
@@ -125,8 +156,8 @@ export async function POST(request: Request) {
                 box_size: boxSize || 'M',
                 size_multiplier: sizeMultiplier || 1.0,
                 status: initialStatus,
-                address: address,
-                phone: phone || '',
+                address: sanitizedAddress,
+                phone: sanitizedPhone,
                 total_price: totalPrice || 0,
                 target_delivery_date: targetDeliveryDate
             })
@@ -134,21 +165,33 @@ export async function POST(request: Request) {
             .single();
 
         if (orderError || !newOrder) {
+            // Rollback wallet if order creation failed
+            if (paymentMethod === 'WALLET') {
+                await supabaseAdmin.rpc('refund_wallet_balance', {
+                    p_user_id: userId,
+                    p_amount: totalPrice
+                });
+            }
             throw new Error(orderError?.message || 'Failed to create order record');
         }
 
-        // 6. Actual stock deduction (without transactions this is risky, but works for mock)
+        // 6. Deduct stock atomically using database function
         for (const update of ingredientUpdates) {
-            await supabase
-                .from('ingredients')
-                .update({ in_stock: update.currentStock - update.deductAmount })
-                .eq('id', update.id);
+            const { data: deductSuccess, error: deductError } = await supabaseAdmin.rpc('deduct_ingredient_stock', {
+                p_ingredient_id: update.id,
+                p_amount: update.deductAmount
+            });
+
+            if (deductError || !deductSuccess) {
+                console.error(`Failed to deduct stock for ingredient ${update.id}`);
+                // Log for manual intervention - don't fail the order
+            }
         }
 
         // 7. Ensure user is marked as having profile completed and points added (upsert simulation)
-        const { data: currentUserObj } = await supabase.from('users').select('points').eq('id', userId).single();
+        const { data: currentUserObj } = await supabaseAdmin.from('users').select('points').eq('id', userId).single();
         if (currentUserObj) {
-            await supabase
+            await supabaseAdmin
                 .from('users')
                 .update({
                     points: (currentUserObj.points || 0) + 100,

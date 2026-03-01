@@ -20,3 +20,16 @@ if (process.env.NODE_ENV !== 'production') {
     globalForSupabase.supabase = supabase;
 }
 
+// Server-side client with service role key (bypasses RLS)
+// This should ONLY be used in API routes, never in client-side code
+export const supabaseAdmin = createClient(
+    supabaseUrl || 'https://placeholder.supabase.co',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder',
+    {
+        auth: {
+            autoRefreshToken: false,
+            persistSession: false
+        }
+    }
+);
+

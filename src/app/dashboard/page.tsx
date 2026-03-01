@@ -814,7 +814,7 @@ export default function DashboardPage() {
                                                 </div>
                                                 <h4 className="font-bold text-[var(--color-text)] mb-2">ยังไม่มีเมนูแนะนำที่ตรงกับวัตถุดิบในกล่อง</h4>
                                                 <p className="text-sm text-[var(--color-text-muted)] max-w-xs mx-auto leading-relaxed">
-                                                    ระบบ AI กำลังตรวจสอบสูตรอาหารที่เหมาะสมกับวัตถุดิบในเซ็ตของคุณเพิ่มเติม โปรดรอแอดมินอัปเดตข้อมูลเร็วๆ นี้ค่ะ ✨
+                                                    ระบบกำลังตรวจสอบสูตรอาหารที่เหมาะสมกับวัตถุดิบในเซ็ตของคุณเพิ่มเติม โปรดรอแอดมินอัปเดตข้อมูลเร็วๆ นี้ ✨
                                                 </p>
                                             </div>
                                         )}

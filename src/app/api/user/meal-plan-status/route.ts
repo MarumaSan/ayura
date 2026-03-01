@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getThaiDate } from '@/lib/dateUtils';
 
 export async function GET(request: Request) {
@@ -12,7 +12,7 @@ export async function GET(request: Request) {
         }
 
         // Find all non-cancelled orders for this user, sorted newest first
-        const { data: orders, error } = await supabase
+        const { data: orders, error } = await supabaseAdmin
             .from('orders')
             .select('*')
             .eq('user_id', userId)

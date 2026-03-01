@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function PATCH(request: Request) {
     try {
@@ -9,7 +9,7 @@ export async function PATCH(request: Request) {
             return NextResponse.json({ error: 'orderId is required' }, { status: 400 });
         }
 
-        const { data: updatedOrder, error } = await supabase
+        const { data: updatedOrder, error } = await supabaseAdmin
             .from('orders')
             .update({ status: 'ยกเลิก' })
             .eq('id', orderId)

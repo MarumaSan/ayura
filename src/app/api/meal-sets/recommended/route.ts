@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { scoreMealSets, computeUserTargets } from '@/lib/mealRecommender';
 
 export const dynamic = 'force-dynamic';
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
         }
 
         // Fetch active meal sets
-        const { data: mealSets, error: msError } = await supabase
+        const { data: mealSets, error: msError } = await supabaseAdmin
             .from('mealsets')
             .select(`
                 *,

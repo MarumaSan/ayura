@@ -509,6 +509,43 @@ export default function CheckoutPage() {
                     </div>
                 </div>
             )}
+        {/* Stock Error Popup */}
+            {showStockErrorPopup && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+                    <div className="glass-card !bg-white p-8 max-w-md w-full text-center shadow-xl">
+                        <div className="text-7xl mb-6">😔</div>
+                        <h2 className="text-2xl font-bold text-[var(--color-danger)] mb-3">
+                            ขออภัย ไม่สามารถสั่งซื้อได้
+                        </h2>
+                        <p className="text-[var(--color-text-light)] mb-6 leading-relaxed">
+                            วัตถุดิบบางรายการในกล่องสุขภาพของคุณหมดชั่วคราว<br />
+                            เรากำลังดำเนินการเติมสต็อกโดยเร็วที่สุด
+                        </p>
+                        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 text-left">
+                            <p className="text-sm text-red-700 font-medium mb-2">🌿 ข้อแนะนำ</p>
+                            <ul className="text-xs text-red-600 space-y-1">
+                                <li>• ลองสั่งใหม่ในภายหลัง (1-2 ชั่วโมง)</li>
+                                <li>• ติดต่อแอดมินเพื่อสอบถามสต็อกล่าสุด</li>
+                                <li>• เลือกเซ็ตอาหารอื่นที่มีสต็อกเพียงพอ</li>
+                            </ul>
+                        </div>
+                        <div className="space-y-3">
+                            <button
+                                onClick={() => window.location.reload()}
+                                className="btn-primary w-full justify-center !py-3 shadow-md"
+                            >
+                                ลองใหม่อีกครั้ง
+                            </button>
+                            <a href="/meal-plan" className="btn-outline w-full justify-center !py-3 block">
+                                เลือกเซ็ตอื่น
+                            </a>
+                            <a href="/dashboard" className="text-[var(--color-text-light)] text-sm hover:text-[var(--color-primary)] block">
+                                กลับไปแดชบอร์ด
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

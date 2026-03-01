@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
+import { withAdminAuth } from '@/lib/adminAuth';
+import { withRateLimit } from '@/lib/rateLimit';
+import { NextRequest } from 'next/server';
 
-export async function GET() {
+async function getAdminOrdersHandler(request: NextRequest) {
     try {
-        const { data: orders, error: ordersError } = await supabase
+        const { data: orders, error: ordersError } = await supabaseAdmin
             .from('orders')
             .select('*')
             .order('created_at', { ascending: false });
@@ -16,7 +19,7 @@ export async function GET() {
 
         let mealSets = [];
         if (mealSetIds.length > 0) {
-            const { data } = await supabase
+            const { data } = await supabaseAdmin
                 .from('mealsets')
                 .select('*')
                 .in('id', mealSetIds);
@@ -29,7 +32,7 @@ export async function GET() {
         // Get box ingredients for those mealSets
         let allBoxIngredients = [];
         if (mealSetIds.length > 0) {
-            const { data } = await supabase
+            const { data } = await supabaseAdmin
                 .from('mealset_box_ingredients')
                 .select('*')
                 .in('mealset_id', mealSetIds);
@@ -40,7 +43,7 @@ export async function GET() {
         const ingredientIds = [...new Set(allBoxIngredients.map(bi => bi.ingredient_id))];
         let originalIngredients = [];
         if (ingredientIds.length > 0) {
-            const { data } = await supabase
+            const { data } = await supabaseAdmin
                 .from('ingredients')
                 .select('*')
                 .in('id', ingredientIds);
@@ -108,4 +111,6 @@ export async function GET() {
         );
     }
 }
+
+export const GET = withRateLimit(withAdminAuth(getAdminOrdersHandler), false);
 

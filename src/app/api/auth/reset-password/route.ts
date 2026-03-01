@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
         }
 
         // 1. Verify user exists with matching email and phone
-        const { data: user, error: fetchError } = await supabase
+        const { data: user, error: fetchError } = await supabaseAdmin
             .from('users')
             .select('id')
             .eq('email', email.trim().toLowerCase())
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
         const hashedPassword = await bcrypt.hash(newPassword.trim(), salt);
 
         // 3. Update the password in database
-        const { error: updateError } = await supabase
+        const { error: updateError } = await supabaseAdmin
             .from('users')
             .update({ password: hashedPassword })
             .eq('id', user.id);

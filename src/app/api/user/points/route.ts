@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: Request) {
     try {
@@ -10,7 +10,7 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'Email is required' }, { status: 400 });
         }
 
-        const { data: user, error: userError } = await supabase
+        const { data: user, error: userError } = await supabaseAdmin
             .from('users')
             .select('*')
             .eq('email', email)
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
         }
 
         // Fetch recent orders for this user
-        const { data: recentOrders, error: ordersError } = await supabase
+        const { data: recentOrders, error: ordersError } = await supabaseAdmin
             .from('orders')
             .select('*')
             .eq('user_id', user.id)

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: Request) {
     try {
@@ -9,7 +9,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'User ID and Phone are required' }, { status: 400 });
         }
 
-        const { data: updatedUser, error } = await supabase
+        const { data: updatedUser, error } = await supabaseAdmin
             .from('users')
             .update({
                 gender,

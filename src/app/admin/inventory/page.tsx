@@ -151,9 +151,20 @@ export default function InventoryPage() {
         if (!confirm('ยืนยันการลบวัตถุดิบนี้?')) return;
         try {
             const res = await fetch(`/api/admin/ingredients/${id}`, { method: 'DELETE' });
-            if (res.ok) fetchIngredients();
+            const data = await res.json();
+            
+            if (data.success) {
+                fetchIngredients();
+            } else {
+                if (data.type === 'foreign_key_constraint') {
+                    alert(data.error + '\n\n' + data.details);
+                } else {
+                    alert(data.error || 'เกิดข้อผิดพลาดในการลบ');
+                }
+            }
         } catch (error) {
             console.error(error);
+            alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
         }
     };
 
