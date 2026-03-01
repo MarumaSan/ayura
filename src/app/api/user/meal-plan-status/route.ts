@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { getThaiDate } from '@/lib/dateUtils';
 
 export async function GET(request: Request) {
     try {
@@ -21,8 +22,8 @@ export async function GET(request: Request) {
         if (error) throw error;
         const validOrders = orders || [];
 
-        // Prioritize currently delivering active order over new pending pre-orders
-        const now = new Date();
+        // Prioritize currently delivering active order over new pending pre-orders (Thai Time)
+        const now = getThaiDate();
         let activeOrder = null;
         let mostRecentPendingOrder = null;
 

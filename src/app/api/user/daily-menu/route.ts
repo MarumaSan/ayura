@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { getThaiDate, formatThaiDate } from '@/lib/dateUtils';
 
 // Simple deterministic hash from a string to produce a number
 function hashCode(str: string): number {
@@ -70,11 +71,11 @@ export async function GET(request: Request) {
             }
         });
 
-        // 5. Date-based deterministic seed
-        const today = new Date();
-        const todayStr = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+        // 5. Date-based deterministic seed (Thai Time)
+        const today = getThaiDate();
+        const todayStr = formatThaiDate(today);
         const yesterdayDate = new Date(today.getTime() - 24 * 60 * 60 * 1000);
-        const yesterdayStr = `${yesterdayDate.getFullYear()}-${yesterdayDate.getMonth()}-${yesterdayDate.getDate()}`;
+        const yesterdayStr = formatThaiDate(yesterdayDate);
 
         // 6. Get yesterday's picks to exclude
         const yesterdayPicks = new Set<string>();

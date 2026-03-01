@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { getThaiDate } from '@/lib/dateUtils';
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
     try {
@@ -13,9 +14,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
         const updateData: any = { status };
 
-        // When status changes to Delivered, record the exact delivery date
+        // When status changes to Delivered, record the exact delivery date (Thai Time)
         if (status === 'จัดส่งสำเร็จ') {
-            updateData.delivery_date = new Date().toISOString();
+            updateData.delivery_date = getThaiDate().toISOString();
         }
 
         const { data: updatedOrder, error } = await supabase

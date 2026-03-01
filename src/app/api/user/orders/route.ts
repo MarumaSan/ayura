@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { getThaiDate, formatThaiIdDate } from '@/lib/dateUtils';
 
 export async function POST(request: Request) {
     try {
@@ -79,12 +80,10 @@ export async function POST(request: Request) {
                 .eq('id', userId);
         }
 
-        const d = new Date();
-        const yy = d.getFullYear().toString().slice(-2);
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
+        const d = getThaiDate();
+        const dateStr = formatThaiIdDate(d);
         const randomPart = crypto.randomUUID().split('-')[0].substring(0, 4).toUpperCase();
-        const orderIdStr = `ORD-${yy}${mm}${dd}-${randomPart}`;
+        const orderIdStr = `ORD-${dateStr}-${randomPart}`;
 
         const initialStatus = paymentMethod === 'PROMPTPAY' ? 'รอยืนยันการชำระเงิน' : 'รออนุมัติ';
 
@@ -97,7 +96,7 @@ export async function POST(request: Request) {
             .eq('status', 'จัดส่งสำเร็จ')
             .order('created_at', { ascending: false });
 
-        const now = new Date();
+        const now = getThaiDate();
         if (activeOrdersList) {
             for (const order of activeOrdersList) {
                 if (order.delivery_date) {
