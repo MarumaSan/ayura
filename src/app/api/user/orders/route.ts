@@ -100,7 +100,7 @@ export async function POST(request: Request) {
         // 3. Handle Wallet Payment - Use atomic function
         if (paymentMethod === 'WALLET') {
             const { data: success, error: deductError } = await supabaseAdmin.rpc('deduct_wallet_balance', {
-                p_user_id: userId,
+                p_user_id: parseInt(userId, 10),
                 p_amount: totalPrice
             });
 
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
         const { data: activeOrdersList } = await supabaseAdmin
             .from('orders')
             .select('*')
-            .eq('user_id', userId)
+            .eq('user_id', parseInt(userId, 10))
             .eq('status', 'จัดส่งสำเร็จ')
             .order('created_at', { ascending: false });
 
@@ -148,7 +148,7 @@ export async function POST(request: Request) {
             .insert({
                 id: orderIdStr,
                 customer_name: sanitizedCustomerName,
-                user_id: userId,
+                user_id: parseInt(userId, 10),
                 mealset_id: ms.id,
                 mealset_name: mealSetName,
                 plan,
@@ -168,7 +168,7 @@ export async function POST(request: Request) {
             // Rollback wallet if order creation failed
             if (paymentMethod === 'WALLET') {
                 await supabaseAdmin.rpc('refund_wallet_balance', {
-                    p_user_id: userId,
+                    p_user_id: parseInt(userId, 10),
                     p_amount: totalPrice
                 });
             }
@@ -189,7 +189,7 @@ export async function POST(request: Request) {
         }
 
         // 7. Ensure user is marked as having profile completed and points added (upsert simulation)
-        const { data: currentUserObj } = await supabaseAdmin.from('users').select('points').eq('id', userId).single();
+        const { data: currentUserObj } = await supabaseAdmin.from('users').select('points').eq('id', parseInt(userId, 10)).single();
         if (currentUserObj) {
             await supabaseAdmin
                 .from('users')
@@ -197,7 +197,7 @@ export async function POST(request: Request) {
                     points: (currentUserObj.points || 0) + 100,
                     is_profile_complete: true
                 })
-                .eq('id', userId);
+                .eq('id', parseInt(userId, 10));
         }
 
         return NextResponse.json({ success: true, orderId: newOrder.id });

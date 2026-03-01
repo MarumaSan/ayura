@@ -27,7 +27,7 @@ export async function GET(request: Request) {
         const { data: recentOrders, error: ordersError } = await supabaseAdmin
             .from('orders')
             .select('*')
-            .eq('user_id', user.id)
+            .eq('user_id', parseInt(user.id, 10))
             .order('created_at', { ascending: false })
             .limit(10);
 

@@ -15,7 +15,7 @@ export async function GET(request: Request) {
         const { data: orders, error } = await supabaseAdmin
             .from('orders')
             .select('*')
-            .eq('user_id', userId)
+            .eq('user_id', parseInt(userId, 10))
             .neq('status', 'ยกเลิก')
             .order('created_at', { ascending: false });
 
