@@ -32,8 +32,18 @@ export default function CheckoutPage() {
         const storedProfile = localStorage.getItem('ayuraProfile');
         if (storedProfile) {
             const parsed = JSON.parse(storedProfile);
+            // Check if ID is in old UUID format - if so, clear session and redirect to login
+            const userId = parsed.userId || parsed.id;
+            if (userId && /^[0-9a-f]{8}-[0-9a-f]{4}/i.test(userId)) {
+                localStorage.removeItem('ayuraProfile');
+                alert('กรุณาเข้าสู่ระบบใหม่เนื่องจากมีการอัปเดตระบบ');
+                router.push('/login');
+                return;
+            }
             setProfile(parsed);
             setProfileName(parsed.name);
+        } else {
+            router.push('/login');
         }
 
         const loadData = async () => {

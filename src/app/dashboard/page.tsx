@@ -35,6 +35,13 @@ export default function DashboardPage() {
             if (stored) {
                 const sessionData = JSON.parse(stored);
                 const userId = sessionData.userId || sessionData.id;
+                // Check if ID is in old UUID format - if so, clear session and redirect to login
+                if (userId && /^[0-9a-f]{8}-[0-9a-f]{4}/i.test(userId)) {
+                    localStorage.removeItem('ayuraProfile');
+                    alert('กรุณาเข้าสู่ระบบใหม่เนื่องจากมีการอัปเดตระบบ');
+                    router.push('/login');
+                    return;
+                }
 
                 try {
                     const res = await fetch(`/api/user/profile?userId=${userId}`);
@@ -64,7 +71,16 @@ export default function DashboardPage() {
                         router.push('/login');
                         return;
                     } else {
-                        setProfile({ name: sessionData.name || 'ผู้ใช้', age: 30, gender: 'ไม่ระบุ', weight: 60, height: 165, healthGoals: ['รักษาสุขภาพ'] });
+                        // Use localStorage data as fallback instead of hardcoded values
+                        const sessionData = JSON.parse(stored || '{}');
+                        setProfile({
+                            name: sessionData.name || 'ผู้ใช้',
+                            age: sessionData.age || 30,
+                            gender: sessionData.gender || 'ไม่ระบุ',
+                            weight: sessionData.weight || 60,
+                            height: sessionData.height || 165,
+                            healthGoals: sessionData.healthGoals || ['รักษาสุขภาพ']
+                        });
                     }
 
                     // Check meal plan status
@@ -97,7 +113,16 @@ export default function DashboardPage() {
                     }
                 } catch (err) {
                     console.error('Failed to fetch profile', err);
-                    setProfile({ name: sessionData.name || 'ผู้ใช้', age: 30, gender: 'ไม่ระบุ', weight: 60, height: 165, healthGoals: ['รักษาสุขภาพ'] });
+                    // Use localStorage data as fallback instead of hardcoded values
+                    const sessionData = JSON.parse(stored || '{}');
+                    setProfile({
+                        name: sessionData.name || 'ผู้ใช้',
+                        age: sessionData.age || 30,
+                        gender: sessionData.gender || 'ไม่ระบุ',
+                        weight: sessionData.weight || 60,
+                        height: sessionData.height || 165,
+                        healthGoals: sessionData.healthGoals || ['รักษาสุขภาพ']
+                    });
                     setHasMealPlan(false);
                 }
             }
