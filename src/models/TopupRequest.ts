@@ -1,19 +1,9 @@
-import mongoose, { Schema, Document, models } from 'mongoose';
-
-export interface ITopupRequest extends Document {
-    userId: string;
+export interface TopupRequestRow {
+    id: string; // 'top-xxx'
+    user_id: string; // references users(id)
     amount: number;
     status: 'pending' | 'approved' | 'rejected';
-    createdAt: Date;
+    created_at: string;
+    updated_at: string;
 }
 
-const TopupRequestSchema = new Schema<ITopupRequest>(
-    {
-        userId: { type: String, required: true },
-        amount: { type: Number, required: true },
-        status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
-    },
-    { timestamps: true }
-);
-
-export const TopupRequest = models.TopupRequest || mongoose.model<ITopupRequest>('TopupRequest', TopupRequestSchema);

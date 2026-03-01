@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/mongodb';
-import { User } from '@/models/User';
+import { supabase } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
     try {
-        await connectToDatabase();
-
         const { email, password } = await request.json();
 
         if (!email || !password) {
@@ -16,23 +13,32 @@ export async function POST(request: Request) {
             );
         }
 
-        const user = await User.findOne({ email: email.trim().toLowerCase() });
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', email.trim().toLowerCase())
+            .single();
 
-        if (!user) {
+        if (error || !user) {
             return NextResponse.json(
                 { error: 'Invalid credentials' },
                 { status: 401 }
             );
         }
 
-        // Compare hashed password — also allow plaintext match for legacy users
+        // Compare hashed password
         let passwordMatch = false;
+        const cleanPassword = password.trim();
         try {
-            passwordMatch = await bcrypt.compare(password, user.password);
-        } catch {
-            // If stored password isn't a bcrypt hash, fall back to direct comparison
-            // This handles legacy users who registered before bcrypt was added
-            passwordMatch = user.password === password;
+            if (user.password.startsWith('$')) {
+                passwordMatch = await bcrypt.compare(cleanPassword, user.password);
+            } else {
+                // Legacy plaintext fallback
+                passwordMatch = user.password === cleanPassword;
+            }
+        } catch (err) {
+            console.error('Password comparison error:', err);
+            passwordMatch = user.password === cleanPassword;
         }
 
         if (!passwordMatch) {
@@ -42,12 +48,12 @@ export async function POST(request: Request) {
             );
         }
 
-        const isComplete = user.isProfileComplete || (user.weight && user.weight > 0 && user.age && user.age > 0);
+        const isComplete = user.is_profile_complete || (user.weight && user.weight > 0 && user.age && user.age > 0);
 
         return NextResponse.json({
             message: 'Login successful',
             user: {
-                id: user.id || user._id.toString(),
+                id: user.id,
                 name: user.name,
                 email: user.email,
                 points: user.points,
@@ -55,7 +61,8 @@ export async function POST(request: Request) {
                 height: user.height,
                 age: user.age,
                 gender: user.gender,
-                balance: user.balance || 0
+                balance: user.balance || 0,
+                role: user.role
             }
         });
 
@@ -66,3 +73,4 @@ export async function POST(request: Request) {
         );
     }
 }
+

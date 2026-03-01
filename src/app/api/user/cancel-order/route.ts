@@ -1,28 +1,22 @@
 import { NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/mongodb';
-import { Order } from '@/models/Order';
+import { supabase } from '@/lib/supabase';
 
 export async function PATCH(request: Request) {
     try {
-        await connectToDatabase();
-
         const { orderId } = await request.json();
 
         if (!orderId) {
             return NextResponse.json({ error: 'orderId is required' }, { status: 400 });
         }
 
-        const query = orderId.length === 24
-            ? { $or: [{ id: orderId }, { _id: orderId }] }
-            : { id: orderId };
+        const { data: updatedOrder, error } = await supabase
+            .from('orders')
+            .update({ status: 'ยกเลิก' })
+            .eq('id', orderId)
+            .select()
+            .single();
 
-        const updatedOrder = await Order.findOneAndUpdate(
-            query,
-            { $set: { status: 'ยกเลิก' } },
-            { new: true }
-        );
-
-        if (!updatedOrder) {
+        if (error || !updatedOrder) {
             return NextResponse.json({ error: 'Order not found' }, { status: 404 });
         }
 
@@ -35,3 +29,4 @@ export async function PATCH(request: Request) {
         );
     }
 }
+

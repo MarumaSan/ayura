@@ -1,41 +1,45 @@
 import { NextResponse } from 'next/server';
-import mongoose from 'mongoose';
-import connectToDatabase from '@/lib/mongodb';
-import { TopupRequest } from '@/models/TopupRequest';
-import { User } from '@/models/User';
+import { supabase } from '@/lib/supabase';
 
 export async function GET() {
     try {
-        await connectToDatabase();
-        const requests = await TopupRequest.find({}).sort({ createdAt: -1 }).lean();
+        const { data: requests, error } = await supabase
+            .from('topup_requests')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        const allRequests = requests || [];
 
         // Populate user names
-        const userIds = [...new Set(requests.map((r: any) => r.userId))];
+        const userIds = [...new Set(allRequests.map((r: any) => r.user_id).filter(Boolean))];
 
-        // Find users by checking both 'id' and '_id', catching any casting errors for non-ObjectId strings
-        const validObjectIds = userIds.filter(id => {
-            try { return mongoose.Types.ObjectId.isValid(id); } catch { return false; }
-        });
-
-        const users = await User.find({
-            $or: [
-                { id: { $in: userIds } },
-                ...(validObjectIds.length > 0 ? [{ _id: { $in: validObjectIds } }] : [])
-            ]
-        }).lean();
+        let users = [];
+        if (userIds.length > 0) {
+            const { data } = await supabase
+                .from('users')
+                .select('*')
+                .in('id', userIds);
+            users = data || [];
+        }
 
         const userMap: Record<string, string> = {};
         users.forEach((u: any) => {
-            const uId = u.id?.toString() || '';
-            const _idStr = u._id?.toString() || '';
             const nameToUse = u.name || u.email || u.id;
-            if (uId) userMap[uId] = nameToUse;
-            if (_idStr) userMap[_idStr] = nameToUse;
+            userMap[u.id] = nameToUse;
         });
 
-        const enriched = requests.map((r: any) => ({
+        const enriched = allRequests.map((r: any) => ({
             ...r,
-            userName: userMap[r.userId] || r.userId,
+            _id: r.id, // for compat
+            id: r.id,
+            userId: r.user_id,
+            amount: r.amount,
+            status: r.status,
+            slipImage: r.slip_image,
+            createdAt: r.created_at,
+            updatedAt: r.updated_at,
+            userName: userMap[r.user_id] || r.user_id,
         }));
 
         return NextResponse.json({ success: true, data: enriched });
@@ -44,3 +48,4 @@ export async function GET() {
         return NextResponse.json({ error: 'Failed to fetch', details: error.message }, { status: 500 });
     }
 }
+

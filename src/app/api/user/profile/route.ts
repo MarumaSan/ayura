@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/mongodb';
-import { User } from '@/models/User';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(request: Request) {
     try {
-        await connectToDatabase();
-
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get('userId');
 
@@ -13,13 +10,13 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
         }
 
-        const query = userId.length === 24
-            ? { $or: [{ id: userId }, { _id: userId }] }
-            : { id: userId };
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', userId)
+            .single();
 
-        const user = await User.findOne(query);
-
-        if (!user) {
+        if (error || !user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
@@ -32,11 +29,11 @@ export async function GET(request: Request) {
                 age: user.age,
                 weight: user.weight,
                 height: user.height,
-                healthGoals: user.healthGoals,
+                healthGoals: user.health_goal ? user.health_goal.split(',') : [],
                 points: user.points,
                 streak: user.streak,
                 balance: user.balance || 0,
-                isProfileComplete: user.isProfileComplete,
+                isProfileComplete: user.is_profile_complete,
                 role: user.role || 'user'
             }
         });
@@ -48,3 +45,4 @@ export async function GET(request: Request) {
         );
     }
 }
+

@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/mongodb';
-import { User } from '@/models/User';
+import { supabase } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 export async function POST(request: Request) {
     try {
-        await connectToDatabase();
-
         const { name, email, password } = await request.json();
 
         if (!name || !email || !password) {
@@ -24,7 +22,11 @@ export async function POST(request: Request) {
             );
         }
 
-        const existingUser = await User.findOne({ email });
+        const { data: existingUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', email.trim().toLowerCase())
+            .single();
 
         if (existingUser) {
             return NextResponse.json(
@@ -36,17 +38,23 @@ export async function POST(request: Request) {
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 12);
 
-        const newUser = new User({
-            id: `usr-${Date.now()}`,
-            name: name.trim(),
-            email: email.trim().toLowerCase(),
-            password: hashedPassword,
-            isProfileComplete: false,
-            points: 10,
-            streak: 0
-        });
+        const { data: newUser, error } = await supabase
+            .from('users')
+            .insert({
+                name: name.trim(),
+                email: email.trim().toLowerCase(),
+                password: hashedPassword,
+                is_profile_complete: false,
+                points: 10,
+                streak: 0,
+                role: 'user'
+            })
+            .select()
+            .single();
 
-        await newUser.save();
+        if (error || !newUser) {
+            throw new Error(error?.message || 'Failed to insert user');
+        }
 
         return NextResponse.json({
             message: 'User registered successfully',
@@ -55,8 +63,8 @@ export async function POST(request: Request) {
                 name: newUser.name,
                 email: newUser.email,
                 points: newUser.points,
-                isProfileComplete: newUser.isProfileComplete,
-                role: newUser.role || 'user'
+                isProfileComplete: newUser.is_profile_complete,
+                role: newUser.role
             }
         }, { status: 201 });
 
@@ -67,3 +75,4 @@ export async function POST(request: Request) {
         );
     }
 }
+

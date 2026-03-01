@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/mongodb';
-import { User } from '@/models/User';
-import { MealSet } from '@/models/MealSet';
+import { supabase } from '@/lib/supabase';
 import { scoreMealSets, computeUserTargets } from '@/lib/mealRecommender';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
     try {
-        await connectToDatabase();
-
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get('userId');
 
@@ -16,12 +14,13 @@ export async function GET(request: Request) {
         }
 
         // 1. Fetch user
-        const query = userId.length === 24
-            ? { $or: [{ id: userId }, { _id: userId }] }
-            : { id: userId };
+        const { data: user, error: userError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', userId)
+            .single();
 
-        const user = await User.findOne(query);
-        if (!user) {
+        if (userError || !user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
@@ -31,7 +30,37 @@ export async function GET(request: Request) {
         }
 
         // 3. Fetch active meal sets
-        const mealSets = await MealSet.find({ isActive: true }).sort({ createdAt: -1 }).lean();
+        const { data: mealSets, error: msError } = await supabase
+            .from('mealsets')
+            .select(`
+                *,
+                mealset_box_ingredients (
+                    ingredient_id,
+                    grams_per_week
+                )
+            `)
+            .eq('is_active', true)
+            .order('created_at', { ascending: false });
+
+        if (msError) throw msError;
+
+        // Map mealsets to camelCase for the recommender
+        const compatMealSets = (mealSets || []).map((ms: any) => ({
+            ...ms,
+            _id: ms.id,
+            priceWeekly: ms.price_weekly,
+            priceMonthly: ms.price_monthly,
+            pricePerGrams: ms.price_per_grams,
+            deliveryFee: ms.delivery_fee,
+            isActive: ms.is_active,
+            avgNutrition: ms.avg_nutrition,
+            createdAt: ms.created_at,
+            updatedAt: ms.updated_at,
+            boxIngredients: (ms.mealset_box_ingredients || []).map((bi: any) => ({
+                ingredientId: bi.ingredient_id,
+                gramsPerWeek: bi.grams_per_week
+            }))
+        }));
 
         // 4. Compute user targets
         const userProfile = {
@@ -39,12 +68,12 @@ export async function GET(request: Request) {
             height: user.height,
             age: user.age,
             gender: user.gender || 'ชาย',
-            healthGoals: user.healthGoals || [],
+            healthGoals: user.health_goal ? user.health_goal.split(',') : [],
         };
         const targets = computeUserTargets(userProfile);
 
         // 5. Score and sort meal sets
-        const scored = scoreMealSets(userProfile, mealSets as any[]);
+        const scored = scoreMealSets(userProfile, compatMealSets as any[]);
 
         return NextResponse.json({
             data: scored,
@@ -58,3 +87,4 @@ export async function GET(request: Request) {
         );
     }
 }
+

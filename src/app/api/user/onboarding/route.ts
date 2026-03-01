@@ -1,34 +1,30 @@
 import { NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/mongodb';
-import { User } from '@/models/User';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(request: Request) {
     try {
-        await connectToDatabase();
-
         const { userId, gender, age, weight, height, healthGoals } = await request.json();
 
         if (!userId) {
             return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
         }
 
-        const updatedUser = await User.findOneAndUpdate(
-            { id: userId },
-            {
-                $set: {
-                    gender,
-                    age,
-                    weight,
-                    height,
-                    healthGoals,
-                    isProfileComplete: true
-                }
-            },
-            { new: true }
-        );
+        const { data: updatedUser, error } = await supabase
+            .from('users')
+            .update({
+                gender,
+                age,
+                weight,
+                height,
+                health_goal: healthGoals.join(','),
+                is_profile_complete: true
+            })
+            .eq('id', userId)
+            .select()
+            .single();
 
-        if (!updatedUser) {
-            return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        if (error || !updatedUser) {
+            return NextResponse.json({ error: 'User not found or update failed' }, { status: 404 });
         }
 
         return NextResponse.json({
@@ -36,7 +32,7 @@ export async function POST(request: Request) {
             user: {
                 id: updatedUser.id,
                 name: updatedUser.name,
-                isProfileComplete: updatedUser.isProfileComplete
+                isProfileComplete: updatedUser.is_profile_complete
             }
         });
 
@@ -47,3 +43,4 @@ export async function POST(request: Request) {
         );
     }
 }
+

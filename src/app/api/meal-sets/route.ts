@@ -1,14 +1,42 @@
 import { NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/mongodb';
-import { MealSet } from '@/models/MealSet';
+import { supabase } from '@/lib/supabase';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {
-        await connectToDatabase();
+        const { data: mealSets, error } = await supabase
+            .from('mealsets')
+            .select(`
+                *,
+                mealset_box_ingredients (
+                    ingredient_id,
+                    grams_per_week
+                )
+            `)
+            .eq('is_active', true)
+            .order('created_at', { ascending: false });
 
-        const mealSets = await MealSet.find({ isActive: true }).sort({ createdAt: -1 }).lean();
+        if (error) throw error;
 
-        return NextResponse.json({ data: mealSets });
+        const compatMealSets = (mealSets || []).map((ms: any) => ({
+            ...ms,
+            _id: ms.id,
+            priceWeekly: ms.price_weekly,
+            priceMonthly: ms.price_monthly,
+            pricePerGrams: ms.price_per_grams,
+            deliveryFee: ms.delivery_fee,
+            isActive: ms.is_active,
+            avgNutrition: ms.avg_nutrition,
+            createdAt: ms.created_at,
+            updatedAt: ms.updated_at,
+            boxIngredients: (ms.mealset_box_ingredients || []).map((bi: any) => ({
+                ingredientId: bi.ingredient_id,
+                gramsPerWeek: bi.grams_per_week
+            }))
+        }));
+
+        return NextResponse.json({ data: compatMealSets });
     } catch (error: any) {
         return NextResponse.json(
             { error: 'Failed to fetch meal sets', details: error.message },
@@ -16,3 +44,4 @@ export async function GET() {
         );
     }
 }
+

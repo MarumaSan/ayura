@@ -216,11 +216,11 @@ export default function DashboardPage() {
                                 </div>
                             </div>
 
-                            {(profile.healthGoals || []).length > 0 && (
+                            {((typeof profile.healthGoals === 'string' ? profile.healthGoals.split(',') : profile.healthGoals) || []).filter(Boolean).length > 0 && (
                                 <div className="mt-4">
                                     <p className="text-xs text-[var(--color-text-muted)] mb-2">🎯 เป้าหมายสุขภาพ</p>
                                     <div className="flex flex-wrap gap-1.5">
-                                        {(profile.healthGoals || []).map((g: string) => (
+                                        {((typeof profile.healthGoals === 'string' ? profile.healthGoals.split(',') : profile.healthGoals) || []).filter(Boolean).map((g: string) => (
                                             <span key={g} className="text-xs px-2.5 py-1 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-medium">
                                                 {g}
                                             </span>

@@ -1,20 +1,41 @@
 import { NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/mongodb';
-import { Community } from '@/models/Community';
+import { supabase } from '@/lib/supabase';
 
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
     try {
-        await connectToDatabase();
         const params = await context.params;
         const body = await request.json();
 
-        const updated = await Community.findOneAndUpdate({ id: params.id }, body, { new: true });
-        if (!updated) {
-            const updatedById = await Community.findByIdAndUpdate(params.id, body, { new: true });
-            if (!updatedById) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
-            return NextResponse.json({ success: true, data: updatedById });
+        const updatePayload: any = {
+            name: body.name,
+            address: body.address,
+            notes: body.notes
+        };
+
+        // Remove undefined keys
+        Object.keys(updatePayload).forEach(key => {
+            if (updatePayload[key] === undefined) {
+                delete updatePayload[key];
+            }
+        });
+
+        const { data: updated, error } = await supabase
+            .from('communities')
+            .update(updatePayload)
+            .eq('id', params.id)
+            .select()
+            .single();
+
+        if (error || !updated) {
+            return NextResponse.json({ success: false, error: 'Not found or update failed' }, { status: 404 });
         }
-        return NextResponse.json({ success: true, data: updated });
+
+        const compatCommunity = {
+            ...updated,
+            _id: updated.id
+        };
+
+        return NextResponse.json({ success: true, data: compatCommunity });
     } catch (error: any) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
@@ -22,16 +43,20 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
 
 export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
     try {
-        await connectToDatabase();
         const params = await context.params;
-        const deleted = await Community.findOneAndDelete({ id: params.id });
-        if (!deleted) {
-            const deletedById = await Community.findByIdAndDelete(params.id);
-            if (!deletedById) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
-            return NextResponse.json({ success: true });
+
+        const { error } = await supabase
+            .from('communities')
+            .delete()
+            .eq('id', params.id);
+
+        if (error) {
+            return NextResponse.json({ success: false, error: 'Delete failed' }, { status: 500 });
         }
+
         return NextResponse.json({ success: true });
     } catch (error: any) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
+

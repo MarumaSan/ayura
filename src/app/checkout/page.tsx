@@ -146,6 +146,8 @@ export default function CheckoutPage() {
         }
     };
 
+    const [createdOrderId, setCreatedOrderId] = useState<string>('');
+
     const submitOrder = async (sessionData: any, method: 'WALLET' | 'PROMPTPAY') => {
         const res = await fetch('/api/user/orders', {
             method: 'POST',
@@ -166,6 +168,8 @@ export default function CheckoutPage() {
         });
 
         if (res.ok) {
+            const data = await res.json();
+            setCreatedOrderId(data.orderId);
             setShowQR(false);
             setShowPendingPopup(true); // Both flows show pending popup
         } else {
@@ -179,6 +183,7 @@ export default function CheckoutPage() {
             console.error('Failed to create order', err);
         }
     };
+
 
 
     if (loading) {
@@ -408,12 +413,14 @@ export default function CheckoutPage() {
                         <p className="text-[var(--color-text-light)] mb-2">
                             กล่องสุขภาพ Ayura จะจัดส่งถึงคุณเร็วๆ นี้
                         </p>
-                        <div className="bg-[var(--color-bg-section)] border border-[var(--color-border)] p-4 rounded-xl mb-8 mt-6">
-                            <div className="text-xs text-[var(--color-text-light)] uppercase tracking-wider font-semibold mb-1">หมายเลขคำสั่งซื้อ</div>
-                            <div className="font-bold text-xl text-[var(--color-primary)] font-mono">
-                                ORD-24-{String(Math.floor(Math.random() * 900) + 100)}
+                        {createdOrderId && (
+                            <div className="bg-[var(--color-bg-section)] border border-[var(--color-border)] p-4 rounded-xl mb-8 mt-6">
+                                <div className="text-xs text-[var(--color-text-light)] uppercase tracking-wider font-semibold mb-1">หมายเลขคำสั่งซื้อ</div>
+                                <div className="font-bold text-xl text-[var(--color-primary)] font-mono">
+                                    {createdOrderId}
+                                </div>
                             </div>
-                        </div>
+                        )}
                         <div className="space-y-3">
                             <a href="/dashboard" className="btn-primary w-full justify-center !py-3 shadow-md">
                                 ไปที่แดชบอร์ด
@@ -488,6 +495,14 @@ export default function CheckoutPage() {
                                 สถานะจะอัปเดตที่แดชบอร์ดของคุณเมื่อ Admin ยืนยันการชำระเงินเรียบร้อยแล้ว
                             </p>
                         </div>
+                        {createdOrderId && (
+                            <div className="bg-[var(--color-bg-section)] border border-[var(--color-border)] p-4 rounded-xl mb-6 mt-2">
+                                <div className="text-xs text-[var(--color-text-light)] uppercase tracking-wider font-semibold mb-1">หมายเลขคำสั่งซื้อ</div>
+                                <div className="font-bold text-xl text-[var(--color-primary)] font-mono">
+                                    {createdOrderId}
+                                </div>
+                            </div>
+                        )}
                         <a href="/dashboard" className="btn-primary w-full justify-center !py-3 shadow-md block">
                             ไปที่แดชบอร์ด
                         </a>

@@ -1,18 +1,19 @@
 import { NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/mongodb';
-import { TopupRequest } from '@/models/TopupRequest';
-import { User } from '@/models/User';
+import { supabase } from '@/lib/supabase';
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
     try {
-        await connectToDatabase();
-
         const body = await request.json();
         const { action } = body; // 'approve' | 'reject'
         const { id } = await context.params;
 
-        const topupReq = await TopupRequest.findById(id);
-        if (!topupReq) {
+        const { data: topupReq, error: reqError } = await supabase
+            .from('topup_requests')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (reqError || !topupReq) {
             return NextResponse.json({ error: 'Topup request not found' }, { status: 404 });
         }
         if (topupReq.status !== 'pending') {
@@ -20,28 +21,51 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         }
 
         if (action === 'approve') {
-            const { userId, amount } = topupReq;
-            const query = userId.length === 24
-                ? { $or: [{ id: userId }, { _id: userId }] }
-                : { id: userId };
+            const { user_id, amount } = topupReq;
 
-            const updatedUser = await User.findOneAndUpdate(
-                query,
-                { $inc: { balance: amount } },
-                { new: true }
-            );
+            // 1. Get current user balance
+            const { data: userData, error: userGetError } = await supabase
+                .from('users')
+                .select('balance')
+                .eq('id', user_id)
+                .single();
 
-            if (!updatedUser) {
+            if (userGetError || !userData) {
                 return NextResponse.json({ error: 'User not found' }, { status: 404 });
             }
 
-            topupReq.status = 'approved';
-            await topupReq.save();
+            // 2. Add amount and update user
+            const newBalance = (userData.balance || 0) + amount;
 
-            return NextResponse.json({ success: true, newBalance: updatedUser.balance });
+            const { error: userUpdateError } = await supabase
+                .from('users')
+                .update({ balance: newBalance })
+                .eq('id', user_id);
+
+            if (userUpdateError) {
+                return NextResponse.json({ error: 'Failed to update user balance' }, { status: 500 });
+            }
+
+            // 3. Update request status
+            const { error: statusUpdateError } = await supabase
+                .from('topup_requests')
+                .update({ status: 'approved' })
+                .eq('id', id);
+
+            if (statusUpdateError) {
+                return NextResponse.json({ error: 'Failed to update request status' }, { status: 500 });
+            }
+
+            return NextResponse.json({ success: true, newBalance });
         } else if (action === 'reject') {
-            topupReq.status = 'rejected';
-            await topupReq.save();
+            const { error } = await supabase
+                .from('topup_requests')
+                .update({ status: 'rejected' })
+                .eq('id', id);
+
+            if (error) {
+                return NextResponse.json({ error: 'Failed to update request status' }, { status: 500 });
+            }
             return NextResponse.json({ success: true });
         } else {
             return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
@@ -51,3 +75,4 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         return NextResponse.json({ error: 'Failed to process', details: error.message }, { status: 500 });
     }
 }
+

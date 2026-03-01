@@ -1,12 +1,8 @@
 import { NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/mongodb';
-import { User } from '@/models/User';
-import { Order } from '@/models/Order';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(request: Request) {
     try {
-        await connectToDatabase();
-
         const { searchParams } = new URL(request.url);
         const email = searchParams.get('email');
 
@@ -14,9 +10,13 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'Email is required' }, { status: 400 });
         }
 
-        const user = await User.findOne({ email });
+        const { data: user, error: userError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', email)
+            .single();
 
-        if (!user) {
+        if (userError || !user) {
             return NextResponse.json({
                 user: { name: 'ผู้ใช้', points: 0, streak: 0 },
                 recentActivity: []
@@ -24,17 +24,19 @@ export async function GET(request: Request) {
         }
 
         // Fetch recent orders for this user
-        const orderQueryUserId = user.id ? user.id : user._id.toString();
-        const recentOrders = await Order.find({ userId: orderQueryUserId })
-            .sort({ createdAt: -1 })
-            .limit(10); // get last 10 activities
+        const { data: recentOrders, error: ordersError } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(10);
 
-        const recentActivity = recentOrders.map(order => {
+        const recentActivity = (recentOrders || []).map(order => {
             const pointsEarned = order.plan === 'weekly' ? 100 : 500;
             const actionText = `สั่งกล่องสุขภาพราย${order.plan === 'weekly' ? 'สัปดาห์' : 'เดือน'}`;
 
             // Format date to Thai format
-            const dateObj = new Date(order.createdAt || Date.now());
+            const dateObj = new Date(order.created_at || Date.now());
             const formattedDate = dateObj.toLocaleDateString('th-TH', {
                 year: '2-digit',
                 month: 'short',
@@ -42,7 +44,7 @@ export async function GET(request: Request) {
             });
 
             return {
-                id: order._id.toString(),
+                id: order.id,
                 date: formattedDate,
                 action: actionText,
                 points: pointsEarned
@@ -66,3 +68,4 @@ export async function GET(request: Request) {
         );
     }
 }
+

@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/mongodb';
-import { Order } from '@/models/Order';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(request: Request) {
     try {
-        await connectToDatabase();
-
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get('userId');
 
@@ -14,23 +11,28 @@ export async function GET(request: Request) {
         }
 
         // Find all non-cancelled orders for this user, sorted newest first
-        const orders = await Order.find({
-            userId,
-            status: { $ne: 'ยกเลิก' }
-        }).sort({ createdAt: -1 });
+        const { data: orders, error } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('user_id', userId)
+            .neq('status', 'ยกเลิก')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        const validOrders = orders || [];
 
         // Prioritize currently delivering active order over new pending pre-orders
         const now = new Date();
         let activeOrder = null;
         let mostRecentPendingOrder = null;
 
-        for (const order of orders) {
+        for (const order of validOrders) {
             if (['รอยืนยันการชำระเงิน', 'รออนุมัติ', 'รอจัดส่ง', 'กำลังขนส่ง'].includes(order.status)) {
                 if (!mostRecentPendingOrder) {
                     mostRecentPendingOrder = order;
                 }
-            } else if (order.status === 'จัดส่งสำเร็จ' && order.deliveryDate) {
-                const deliveryDate = new Date(order.deliveryDate);
+            } else if (order.status === 'จัดส่งสำเร็จ' && order.delivery_date) {
+                const deliveryDate = new Date(order.delivery_date);
                 const daysToAdd = order.plan === 'monthly' ? 30 : 7;
                 const expiryDate = new Date(deliveryDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
 
@@ -55,45 +57,46 @@ export async function GET(request: Request) {
 
             // Calculate remaining days for the response
             let remainingDays = null;
-            if (activeOrder.deliveryDate && ['จัดส่งสำเร็จ'].includes(activeOrder.status)) {
-                const deliveryDate = new Date(activeOrder.deliveryDate);
+            if (activeOrder.delivery_date && ['จัดส่งสำเร็จ'].includes(activeOrder.status)) {
+                const deliveryDate = new Date(activeOrder.delivery_date);
                 const daysToAdd = activeOrder.plan === 'monthly' ? 30 : 7;
                 const expiryDate = new Date(deliveryDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
 
-                // Allow it to be negative so the UI can know it expired, 
-                // but technically the loop above should have moved to the next order if it expired.
+                // Allow it to be negative so the UI can know it expired
                 const msRemaining = expiryDate.getTime() - now.getTime();
                 remainingDays = Math.ceil(msRemaining / (1000 * 60 * 60 * 24));
             }
 
             // Check if there is a separate pre-order
             let preOrderData = null;
-            if (mostRecentPendingOrder && (activeOrder.id !== mostRecentPendingOrder.id && activeOrder._id.toString() !== mostRecentPendingOrder._id.toString())) {
+            if (mostRecentPendingOrder && activeOrder.id !== mostRecentPendingOrder.id) {
                 preOrderData = {
-                    orderId: mostRecentPendingOrder.id || mostRecentPendingOrder._id.toString(),
-                    mealSetId: mostRecentPendingOrder.mealSetId,
-                    mealSetName: mostRecentPendingOrder.mealSetName,
+                    orderId: mostRecentPendingOrder.id,
+                    mealSetId: mostRecentPendingOrder.mealset_id,
+                    mealSetName: mostRecentPendingOrder.mealset_name,
                     plan: mostRecentPendingOrder.plan,
                     status: mostRecentPendingOrder.status,
-                    boxSize: mostRecentPendingOrder.boxSize || 'M',
-                    totalPrice: mostRecentPendingOrder.totalPrice,
-                    targetDeliveryDate: mostRecentPendingOrder.targetDeliveryDate
+                    boxSize: mostRecentPendingOrder.box_size || 'M',
+                    totalPrice: mostRecentPendingOrder.total_price,
+                    targetDeliveryDate: mostRecentPendingOrder.target_delivery_date
                 };
             }
 
             return NextResponse.json({
                 hasMealPlan: true,
                 isApproved,
-                orderId: activeOrder.id || activeOrder._id.toString(),
-                mealSetId: activeOrder.mealSetId,
+                orderId: activeOrder.id,
+                mealSetId: activeOrder.mealset_id,
                 plan: activeOrder.plan,
                 status: activeOrder.status,
-                deliveryDate: activeOrder.deliveryDate,
-                orderDate: activeOrder.createdAt,
-                deliveredAt: activeOrder.updatedAt,
-                boxSize: activeOrder.boxSize || 'M',
-                sizeMultiplier: activeOrder.sizeMultiplier || 1.0,
-                totalPrice: activeOrder.totalPrice,
+                deliveryDate: activeOrder.delivery_date,
+                orderDate: activeOrder.created_at,
+                boxSize: activeOrder.box_size || 'M',
+                sizeMultiplier: activeOrder.size_multiplier || 1.0,
+                totalPrice: activeOrder.total_price,
+                customerName: activeOrder.customer_name,
+                address: activeOrder.address,
+                phone: activeOrder.phone,
                 remainingDays,
                 preOrder: preOrderData
             });
@@ -107,3 +110,4 @@ export async function GET(request: Request) {
         );
     }
 }
+

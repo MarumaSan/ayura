@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/mongodb';
-import { TopupRequest } from '@/models/TopupRequest';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(request: Request) {
     try {
-        await connectToDatabase();
-
         const body = await request.json();
         const { userId, amount } = body;
 
@@ -13,13 +10,24 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing or invalid fields' }, { status: 400 });
         }
 
-        const topupRequest = await TopupRequest.create({
-            userId,
-            amount: Number(amount),
-            status: 'pending',
-        });
+        const requestId = `top-${crypto.randomUUID().split('-')[0]}`;
 
-        return NextResponse.json({ success: true, requestId: topupRequest._id });
+        const { data: topupRequest, error } = await supabase
+            .from('topup_requests')
+            .insert({
+                id: requestId,
+                user_id: userId,
+                amount: Number(amount),
+                status: 'pending'
+            })
+            .select()
+            .single();
+
+        if (error || !topupRequest) {
+            throw new Error(error?.message || 'Failed to create topup request');
+        }
+
+        return NextResponse.json({ success: true, requestId: topupRequest.id });
     } catch (error: any) {
         console.error('Topup request error:', error);
         return NextResponse.json(
@@ -28,3 +36,4 @@ export async function POST(request: Request) {
         );
     }
 }
+

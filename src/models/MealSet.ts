@@ -1,37 +1,32 @@
-import mongoose from 'mongoose';
-
-// Ingredient in the box per week — "BoxSet" side (วัตถุดิบในกล่อง)
-const BoxIngredientSchema = new mongoose.Schema({
-    ingredientId: { type: String, required: true },
-    gramsPerWeek: { type: Number, required: true }, // ×4 สำหรับรายเดือน
-    note: { type: String, default: '' },
-});
-
-// Pre-calculated average daily nutrition for the whole set
-const AvgNutritionSchema = new mongoose.Schema({
-    calories: { type: Number, default: 0 },   // kcal/วัน
-    protein: { type: Number, default: 0 },   // g/วัน
-    carbs: { type: Number, default: 0 },   // g/วัน
-    fat: { type: Number, default: 0 },   // g/วัน
-});
-
-// Top-level MealSet — admin creates these.
-// Contains the BoxSet side (boxIngredients). Recipes are matched dynamically.
-const MealSetSchema = new mongoose.Schema({
-    id: { type: String, required: true, unique: true },
-    name: { type: String, required: true },       // e.g. "เซ็ตลดน้ำหนัก"
-    description: { type: String, default: '' },
-    image: { type: String, default: '📦' },
-    priceWeekly: { type: Number, required: true },
-    priceMonthly: { type: Number, required: true },
-    avgNutrition: { type: AvgNutritionSchema, default: () => ({}) },  // สารอาหารเฉลี่ยต่อวัน
-    boxIngredients: [BoxIngredientSchema],
-    isActive: { type: Boolean, default: true },
-}, { timestamps: true });
-
-// Delete cached model to pick up schema changes during hot-reload / seed
-if (mongoose.models.MealSet) {
-    delete mongoose.models.MealSet;
+export interface AvgNutrition {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
 }
 
-export const MealSet = mongoose.model('MealSet', MealSetSchema);
+export interface BoxIngredientRow {
+    id?: string;
+    mealset_id: string;
+    ingredient_id: string;
+    grams_per_week: number;
+    note?: string;
+    created_at?: string;
+}
+
+export interface MealSetRow {
+    id: string; // 'set-xxx'
+    name: string;
+    description?: string;
+    image: string;
+    price_weekly: number;
+    price_monthly: number;
+    is_active: boolean;
+    avg_calories: number;
+    avg_protein: number;
+    avg_carbs: number;
+    avg_fat: number;
+    created_at: string;
+    updated_at: string;
+}
+

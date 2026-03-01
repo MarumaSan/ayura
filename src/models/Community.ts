@@ -1,10 +1,9 @@
-import mongoose from 'mongoose';
+export interface CommunityRow {
+    id: string; // 'com-xxx'
+    name: string;
+    address?: string;
+    note?: string;
+    created_at: string;
+    updated_at: string;
+}
 
-const CommunitySchema = new mongoose.Schema({
-    id: { type: String, required: true, unique: true },
-    name: { type: String, required: true },
-    address: { type: String, default: '' },
-    note: { type: String, default: '' },
-}, { timestamps: true });
-
-export const Community = mongoose.models.Community || mongoose.model('Community', CommunitySchema);

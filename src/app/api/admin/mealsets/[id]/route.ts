@@ -1,22 +1,30 @@
 import { NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/mongodb';
-import { MealSet } from '@/models/MealSet';
-import { Ingredient } from '@/models/Ingredient';
+import { supabase } from '@/lib/supabase';
 
 async function calcNutrition(boxIngredients: { ingredientId: string; gramsPerWeek: number }[]) {
+    if (!boxIngredients || boxIngredients.length === 0) {
+        return { calories: 0, protein: 0, carbs: 0, fat: 0 };
+    }
+
     const ids = boxIngredients.map((b) => b.ingredientId);
-    const ingredients = await Ingredient.find({ id: { $in: ids } });
+
+    const { data: ingredients } = await supabase
+        .from('ingredients')
+        .select('*')
+        .in('id', ids);
 
     let totalCal = 0, totalProtein = 0, totalCarbs = 0, totalFat = 0;
 
+    const validIngredients = ingredients || [];
+
     for (const bi of boxIngredients) {
-        const ing = ingredients.find((i: any) => i.id === bi.ingredientId);
+        const ing = validIngredients.find((i: any) => i.id === bi.ingredientId);
         if (!ing) continue;
         const factor = bi.gramsPerWeek / 100;
-        totalCal += ing.calories100g * factor;
-        totalProtein += ing.protein100g * factor;
-        totalCarbs += ing.carbs100g * factor;
-        totalFat += ing.fat100g * factor;
+        totalCal += (ing.calories_100g || 0) * factor;
+        totalProtein += (ing.protein_100g || 0) * factor;
+        totalCarbs += (ing.carbs_100g || 0) * factor;
+        totalFat += (ing.fat_100g || 0) * factor;
     }
 
     return {
@@ -29,23 +37,71 @@ async function calcNutrition(boxIngredients: { ingredientId: string; gramsPerWee
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        await connectToDatabase();
         const { id } = await params;
         const body = await req.json();
 
         const avgNutrition = await calcNutrition(body.boxIngredients || []);
 
-        const updated = await MealSet.findOneAndUpdate(
-            { $or: [{ id }, { _id: id }] },
-            { ...body, avgNutrition },
-            { new: true }
-        );
+        const updatePayload: any = {
+            name: body.name,
+            description: body.description,
+            image: body.image,
+            price_per_grams: body.pricePerGrams,
+            delivery_fee: body.deliveryFee,
+            is_active: body.isActive,
+            avg_nutrition: avgNutrition,
+        };
 
-        if (!updated) {
-            return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+        Object.keys(updatePayload).forEach(key => {
+            if (updatePayload[key] === undefined) {
+                delete updatePayload[key];
+            }
+        });
+
+        const { data: updated, error } = await supabase
+            .from('mealsets')
+            .update(updatePayload)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error || !updated) {
+            return NextResponse.json({ success: false, error: 'Not found or update failed' }, { status: 404 });
         }
 
-        return NextResponse.json({ success: true, data: updated });
+        // Handle boxIngredients separately if provided
+        if (body.boxIngredients) {
+            // Delete existing
+            await supabase
+                .from('mealset_box_ingredients')
+                .delete()
+                .eq('mealset_id', id);
+
+            // Insert new
+            if (body.boxIngredients.length > 0) {
+                const boxIngredientsPayload = body.boxIngredients.map((bi: any) => ({
+                    mealset_id: id,
+                    ingredient_id: bi.ingredientId,
+                    grams_per_week: bi.gramsPerWeek
+                }));
+
+                await supabase
+                    .from('mealset_box_ingredients')
+                    .insert(boxIngredientsPayload);
+            }
+        }
+
+        const compatMealset = {
+            ...updated,
+            _id: updated.id,
+            pricePerGrams: updated.price_per_grams,
+            deliveryFee: updated.delivery_fee,
+            isActive: updated.is_active,
+            avgNutrition: updated.avg_nutrition,
+            boxIngredients: body.boxIngredients || []
+        };
+
+        return NextResponse.json({ success: true, data: compatMealset });
     } catch (error: any) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
@@ -53,16 +109,16 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        await connectToDatabase();
         const { id } = await params;
 
-        const updated = await MealSet.findOneAndUpdate(
-            { $or: [{ id }, { _id: id }] },
-            { isActive: false },
-            { new: true }
-        );
+        const { data: updated, error } = await supabase
+            .from('mealsets')
+            .update({ is_active: false })
+            .eq('id', id)
+            .select()
+            .single();
 
-        if (!updated) {
+        if (error || !updated) {
             return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
         }
 
@@ -71,3 +127,4 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
+

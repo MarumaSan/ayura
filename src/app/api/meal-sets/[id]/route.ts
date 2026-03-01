@@ -1,28 +1,45 @@
 import { NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/mongodb';
-import { MealSet } from '@/models/MealSet';
-import mongoose from 'mongoose';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        await connectToDatabase();
         const { id } = await params;
 
-        // Try short string id first, then MongoDB _id
-        let mealSet = await MealSet.findOne({ id });
+        const { data: mealSet, error } = await supabase
+            .from('mealsets')
+            .select(`
+                *,
+                mealset_box_ingredients (
+                    ingredient_id,
+                    grams_per_week
+                )
+            `)
+            .eq('id', id)
+            .single();
 
-        if (!mealSet && mongoose.isValidObjectId(id)) {
-            mealSet = await MealSet.findById(id);
-        }
-
-        if (!mealSet) {
+        if (error || !mealSet) {
             return NextResponse.json({ error: 'MealSet not found' }, { status: 404 });
         }
 
-        return NextResponse.json({ data: mealSet });
+        const compatMealSet = {
+            ...mealSet,
+            _id: mealSet.id,
+            pricePerGrams: mealSet.price_per_grams,
+            deliveryFee: mealSet.delivery_fee,
+            isActive: mealSet.is_active,
+            avgNutrition: mealSet.avg_nutrition,
+            createdAt: mealSet.created_at,
+            updatedAt: mealSet.updated_at,
+            boxIngredients: (mealSet.mealset_box_ingredients || []).map((bi: any) => ({
+                ingredientId: bi.ingredient_id,
+                gramsPerWeek: bi.grams_per_week
+            }))
+        };
+
+        return NextResponse.json({ data: compatMealSet });
     } catch (error: any) {
         return NextResponse.json(
             { error: 'Failed to fetch meal set', details: error.message },
@@ -30,3 +47,4 @@ export async function GET(
         );
     }
 }
+

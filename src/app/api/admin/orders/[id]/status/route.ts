@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/mongodb';
-import { Order } from '@/models/Order';
+import { supabase } from '@/lib/supabase';
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
     try {
-        await connectToDatabase();
-
         const params = await context.params;
         const body = await request.json();
         const { status } = body;
@@ -14,25 +11,22 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
             return NextResponse.json({ error: 'Status is required' }, { status: 400 });
         }
 
-        const query = params.id.length === 24
-            ? { $or: [{ id: params.id }, { _id: params.id }] }
-            : { id: params.id };
-
-        const updateData: any = { $set: { status } };
+        const updateData: any = { status };
 
         // When status changes to Delivered, record the exact delivery date
         if (status === 'จัดส่งสำเร็จ') {
-            updateData.$set.deliveryDate = new Date();
+            updateData.delivery_date = new Date().toISOString();
         }
 
-        const updatedOrder = await Order.findOneAndUpdate(
-            query,
-            updateData,
-            { new: true }
-        );
+        const { data: updatedOrder, error } = await supabase
+            .from('orders')
+            .update(updateData)
+            .eq('id', params.id)
+            .select()
+            .single();
 
-        if (!updatedOrder) {
-            return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+        if (error || !updatedOrder) {
+            return NextResponse.json({ error: 'Order not found or update failed' }, { status: 404 });
         }
 
         return NextResponse.json({ success: true, order: updatedOrder });
@@ -44,3 +38,4 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         );
     }
 }
+

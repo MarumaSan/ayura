@@ -286,6 +286,9 @@ export default function InventoryPage() {
                         <table className="w-full">
                             <thead>
                                 <tr className="border-b border-[var(--color-border)]">
+                                    <th className="text-center py-4 px-4 text-sm font-semibold text-[var(--color-text-light)] w-16">
+                                        ลำดับ
+                                    </th>
                                     <th className="text-left py-4 px-6 text-sm font-semibold text-[var(--color-text-light)]">
                                         วัตถุดิบ
                                     </th>
@@ -323,6 +326,9 @@ export default function InventoryPage() {
                                             key={item.id || item._id}
                                             className="border-b border-[var(--color-border)] last:border-none hover:bg-[var(--color-bg-section)]/50 transition-colors"
                                         >
+                                            <td className="py-4 px-4 text-center text-sm font-medium text-[var(--color-text-muted)]">
+                                                {String(filteredIngredients.indexOf(item) + 1).padStart(3, '0')}
+                                            </td>
                                             <td className="py-4 px-6">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-10 h-10 rounded-xl bg-[var(--color-bg-section)] flex items-center justify-center text-xl">
