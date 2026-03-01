@@ -27,13 +27,13 @@ export async function GET(request: Request) {
         const { data: recentOrders, error: ordersError } = await supabaseAdmin
             .from('orders')
             .select('*')
-            .eq('user_id', parseInt(user.id, 10))
+            .eq('user_id', user.id)
             .order('created_at', { ascending: false })
             .limit(10);
 
         const recentActivity = (recentOrders || []).map(order => {
-            const pointsEarned = order.plan === 'weekly' ? 100 : 500;
-            const actionText = `สั่งกล่องสุขภาพราย${order.plan === 'weekly' ? 'สัปดาห์' : 'เดือน'}`;
+            const pointsEarned = order.plan === 'monthly' ? 500 : 100;
+            const actionText = `สั่งกล่องสุขภาพราย${order.plan === 'monthly' ? 'เดือน' : 'สัปดาห์'}`;
 
             // Format date to Thai format
             const dateObj = new Date(order.created_at || Date.now());

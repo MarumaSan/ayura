@@ -99,14 +99,20 @@ export async function POST(request: Request) {
 
         // 3. Handle Wallet Payment - Use atomic function
         if (paymentMethod === 'WALLET') {
+            const userIdInt = parseInt(userId, 10);
+            console.log(`Wallet deduction: userId=${userIdInt}, amount=${totalPrice}`);
+            
             const { data: success, error: deductError } = await supabaseAdmin.rpc('deduct_wallet_balance', {
-                p_user_id: parseInt(userId, 10),
+                p_user_id: userIdInt,
                 p_amount: totalPrice
             });
 
+            console.log(`Wallet result: success=${success}, error=${deductError?.message}`);
+
             if (deductError || !success) {
                 return NextResponse.json({ 
-                    error: 'Insufficient balance or wallet error' 
+                    error: 'Insufficient balance or wallet error',
+                    details: deductError?.message || 'Balance may be insufficient'
                 }, { status: 400 });
             }
         }
@@ -188,13 +194,14 @@ export async function POST(request: Request) {
             }
         }
 
-        // 7. Ensure user is marked as having profile completed and points added (upsert simulation)
+        // 7. Calculate and add points based on plan type
+        const pointsToAdd = plan === 'monthly' ? 500 : 100;
         const { data: currentUserObj } = await supabaseAdmin.from('users').select('points').eq('id', parseInt(userId, 10)).single();
         if (currentUserObj) {
             await supabaseAdmin
                 .from('users')
                 .update({
-                    points: (currentUserObj.points || 0) + 100,
+                    points: (currentUserObj.points || 0) + pointsToAdd,
                     is_profile_complete: true
                 })
                 .eq('id', parseInt(userId, 10));

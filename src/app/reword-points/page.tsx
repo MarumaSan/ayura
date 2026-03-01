@@ -24,17 +24,30 @@ export default function HealthPointsPage() {
     const [recentActivity, setRecentActivity] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [redeemSuccess, setRedeemSuccess] = useState<string | null>(null);
+    const [redeemError, setRedeemError] = useState<string | null>(null);
+    const [isRedeeming, setIsRedeeming] = useState(false);
+    const [userEmail, setUserEmail] = useState<string | null>(null);
+    const [redeemedRewards, setRedeemedRewards] = useState<any[]>([]);
 
     useEffect(() => {
         const fetchPointsData = async (email: string) => {
             try {
-                const res = await fetch(`/api/user/points?email=${email}`);
-                if (res.ok) {
-                    const data = await res.json();
+                const [pointsRes, rewardsRes] = await Promise.all([
+                    fetch(`/api/user/points?email=${email}`),
+                    fetch(`/api/user/rewards?email=${email}`)
+                ]);
+                
+                if (pointsRes.ok) {
+                    const data = await pointsRes.json();
                     setUserName(data.user.name);
                     setPoints(data.user.points);
                     setStreak(data.user.streak);
                     setRecentActivity(data.recentActivity || []);
+                }
+                
+                if (rewardsRes.ok) {
+                    const rewardsData = await rewardsRes.json();
+                    setRedeemedRewards(rewardsData.redemptions || []);
                 }
             } catch (error) {
                 console.error("Failed to fetch points data", error);
@@ -48,6 +61,7 @@ export default function HealthPointsPage() {
             const parsed = JSON.parse(stored);
             setUserName(parsed.name || 'ผู้ใช้');
             if (parsed.email) {
+                setUserEmail(parsed.email);
                 fetchPointsData(parsed.email);
                 return;
             }
@@ -55,10 +69,54 @@ export default function HealthPointsPage() {
         setIsLoading(false);
     }, []);
 
-    const handleRedeem = (reward: typeof rewards[0]) => {
-        if (points >= reward.pointsRequired) {
-            setRedeemSuccess(reward.name);
-            setTimeout(() => setRedeemSuccess(null), 3000);
+    const handleRedeem = async (reward: typeof rewards[0]) => {
+        if (!userEmail) {
+            setRedeemError('กรุณาเข้าสู่ระบบก่อน');
+            setTimeout(() => setRedeemError(null), 3000);
+            return;
+        }
+        
+        if (points < reward.pointsRequired) {
+            setRedeemError('แต้มไม่พอสำหรับแลกรางวัลนี้');
+            setTimeout(() => setRedeemError(null), 3000);
+            return;
+        }
+
+        setIsRedeeming(true);
+        setRedeemError(null);
+        
+        try {
+            const res = await fetch('/api/user/redeem', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: userEmail, rewardId: reward.id })
+            });
+            
+            const data = await res.json();
+            
+            if (res.ok && data.success) {
+                setPoints(data.remainingPoints);
+                setRedeemSuccess(reward.name);
+                // Add to redeemed rewards list
+                setRedeemedRewards(prev => [{
+                    id: data.redemptionId,
+                    reward_id: reward.id,
+                    reward_name: reward.name,
+                    points_used: reward.pointsRequired,
+                    status: 'active',
+                    redeemed_at: new Date().toISOString()
+                }, ...prev]);
+                setTimeout(() => setRedeemSuccess(null), 3000);
+            } else {
+                setRedeemError(data.error || 'ไม่สามารถแลกรางวัลได้');
+                setTimeout(() => setRedeemError(null), 3000);
+            }
+        } catch (error) {
+            console.error('Redemption error:', error);
+            setRedeemError('เกิดข้อผิดพลาด กรุณาลองใหม่');
+            setTimeout(() => setRedeemError(null), 3000);
+        } finally {
+            setIsRedeeming(false);
         }
     };
 
@@ -86,6 +144,17 @@ export default function HealthPointsPage() {
                     <div>
                         <p className="font-bold text-sm">แลกรางวัลสำเร็จ!</p>
                         <p className="text-xs text-green-100">{redeemSuccess}</p>
+                    </div>
+                </div>
+            )}
+
+            {/* Error Toast */}
+            {redeemError && (
+                <div className="fixed top-24 right-4 z-50 bg-red-600 text-white px-6 py-4 rounded-xl shadow-2xl animate-fade-in flex items-center gap-3">
+                    <span className="text-xl">❌</span>
+                    <div>
+                        <p className="font-bold text-sm">แลกรางวัลไม่สำเร็จ</p>
+                        <p className="text-xs text-red-100">{redeemError}</p>
                     </div>
                 </div>
             )}
@@ -170,6 +239,40 @@ export default function HealthPointsPage() {
                             </div>
                         </div>
 
+                        {/* Redeemed Rewards */}
+                        {redeemedRewards.length > 0 && (
+                            <div className="glass-card p-6 animate-fade-in delay-200">
+                                <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-[var(--color-primary-dark)]">
+                                    🎁 รางวัลที่แลกไว้
+                                </h3>
+                                <div className="space-y-2">
+                                    {redeemedRewards.slice(0, 5).map((item, i) => (
+                                        <div key={item.id || i} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+                                            <div>
+                                                <p className="text-sm font-medium text-[var(--color-text)]">{item.reward_name}</p>
+                                                <p className="text-xs text-[var(--color-text-muted)]">
+                                                    แลกเมื่อ {new Date(item.redeemed_at).toLocaleDateString('th-TH', { 
+                                                        year: '2-digit', 
+                                                        month: 'short', 
+                                                        day: 'numeric' 
+                                                    })}
+                                                </p>
+                                            </div>
+                                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                                item.status === 'active' 
+                                                    ? 'bg-green-100 text-green-700' 
+                                                    : item.status === 'used'
+                                                        ? 'bg-gray-100 text-gray-600'
+                                                        : 'bg-red-100 text-red-600'
+                                            }`}>
+                                                {item.status === 'active' ? 'พร้อมใช้' : item.status === 'used' ? 'ใช้แล้ว' : 'หมดอายุ'}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Recent Activity */}
                         <div className="glass-card p-6 animate-fade-in delay-200">
                             <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-[var(--color-primary-dark)]">
@@ -222,9 +325,10 @@ export default function HealthPointsPage() {
                                                         {canRedeem ? (
                                                             <button
                                                                 onClick={() => handleRedeem(reward)}
-                                                                className="text-xs bg-[var(--color-primary)] text-white px-3 py-1 rounded-full font-medium hover:opacity-90 transition-opacity"
+                                                                disabled={isRedeeming}
+                                                                className="text-xs bg-[var(--color-primary)] text-white px-3 py-1 rounded-full font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                                                             >
-                                                                แลกเลย
+                                                                {isRedeeming ? 'กำลังแลก...' : 'แลกเลย'}
                                                             </button>
                                                         ) : (
                                                             <span className="text-xs text-[var(--color-text-muted)]">

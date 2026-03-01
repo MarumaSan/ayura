@@ -78,7 +78,7 @@ async function registerHandler(request: NextRequest) {
                 email: sanitizedEmail,
                 password: hashedPassword,
                 is_profile_complete: false,
-                points: 10,
+                points: 100,
                 streak: 0,
                 role: 'user'
             })
