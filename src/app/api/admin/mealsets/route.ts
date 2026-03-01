@@ -59,7 +59,8 @@ export async function GET() {
             if (!boxItemsMap[bi.mealset_id]) boxItemsMap[bi.mealset_id] = [];
             boxItemsMap[bi.mealset_id].push({
                 ingredientId: bi.ingredient_id,
-                gramsPerWeek: bi.grams_per_week
+                gramsPerWeek: bi.grams_per_week,
+                note: bi.note || ''
             });
         });
 
@@ -67,8 +68,6 @@ export async function GET() {
             ...ms,
             _id: ms.id,
             description: ms.description,
-            pricePerGrams: ms.price_per_grams,
-            deliveryFee: ms.delivery_fee,
             isActive: ms.is_active,
             avgNutrition: ms.avg_nutrition,
             boxIngredients: boxItemsMap[ms.id] || []
@@ -89,7 +88,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: 'name is required' }, { status: 400 });
         }
 
-        const newId = `set-${crypto.randomUUID().split('-')[0]}`;
+        const newId = body.id && body.id.trim() !== '' ? body.id : `set-${crypto.randomUUID().split('-')[0]}`;
 
         // Auto-compute avgNutrition
         const avgNutrition = await calcNutrition(body.boxIngredients || []);
@@ -99,8 +98,6 @@ export async function POST(req: Request) {
             name: body.name,
             description: body.description || '',
             image: body.image || '',
-            price_per_grams: body.pricePerGrams || 0,
-            delivery_fee: body.deliveryFee || 0,
             is_active: body.isActive !== undefined ? body.isActive : true,
             avg_nutrition: avgNutrition,
         };
@@ -120,7 +117,8 @@ export async function POST(req: Request) {
             const boxIngredientsPayload = body.boxIngredients.map((bi: any) => ({
                 mealset_id: newId,
                 ingredient_id: bi.ingredientId,
-                grams_per_week: bi.gramsPerWeek
+                grams_per_week: bi.gramsPerWeek,
+                note: bi.note || ''
             }));
 
             const { error: boxError } = await supabase
@@ -135,8 +133,6 @@ export async function POST(req: Request) {
         const compatMealset = {
             ...newMealset,
             _id: newMealset.id,
-            pricePerGrams: newMealset.price_per_grams,
-            deliveryFee: newMealset.delivery_fee,
             isActive: newMealset.is_active,
             avgNutrition: newMealset.avg_nutrition,
             boxIngredients: body.boxIngredients || []

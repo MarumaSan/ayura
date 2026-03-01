@@ -154,11 +154,27 @@ export default function AdminMealSetsPage() {
         }
     };
 
-    /* ───── Delete (soft) ───── */
+    /* ───── Delete (soft & hard) ───── */
     const handleDelete = async (item: any) => {
         if (!confirm(`ยืนยันการปิดการใช้งานเซ็ต "${item.name}"?`)) return;
-        await fetch(`/api/admin/mealsets/${item.id || item._id}`, { method: 'DELETE' });
-        fetchAll();
+        const res = await fetch(`/api/admin/mealsets/${item.id || item._id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+            fetchAll();
+        } else {
+            alert('เกิดข้อผิดพลาดในการปิดใช้งาน: ' + data.error);
+        }
+    };
+
+    const handleHardDelete = async (item: any) => {
+        if (!confirm(`⚠️ ยืนยันการลบเซ็ต "${item.name}" อย่างถาวร? \nข้อมูลวัตถุดิบที่อยู่ในเซ็ตนี้จะถูกลบไปด้วยและไม่สามารถกู้คืนได้`)) return;
+        const res = await fetch(`/api/admin/mealsets/${item.id || item._id}?hard=true`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+            fetchAll();
+        } else {
+            alert('เกิดข้อผิดพลาดในการลบ: ' + data.error);
+        }
     };
 
     /* ───── Restore ───── */
@@ -189,9 +205,14 @@ export default function AdminMealSetsPage() {
                             <h1 className="text-3xl font-bold text-gradient mb-2">🍱 จัดการ Meal Sets</h1>
                             <p className="text-[var(--color-text-light)]">เพิ่ม แก้ไข หรือปิดใช้งานเซ็ตอาหารสุขภาพ</p>
                         </div>
-                        <button onClick={openAdd} className="btn-primary !py-2 !px-5 text-sm self-start sm:self-auto">
-                            + เพิ่มเซ็ตใหม่
-                        </button>
+                        <div className="flex gap-2 mt-4 sm:mt-0 items-start sm:items-center">
+                            <Link href="/admin/recipes" className="btn-outline !py-2 !px-4 text-sm whitespace-nowrap">
+                                จัดการสูตรอาหาร 🥗
+                            </Link>
+                            <button onClick={openAdd} className="btn-primary !py-2 !px-5 text-sm self-start sm:self-auto whitespace-nowrap">
+                                + เพิ่มเซ็ตใหม่
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -283,6 +304,7 @@ export default function AdminMealSetsPage() {
                                                 ) : (
                                                     <button onClick={() => handleRestore(ms)} className="text-sm text-green-600 hover:underline">เปิดใช้</button>
                                                 )}
+                                                <button onClick={() => handleHardDelete(ms)} className="text-sm text-gray-400 hover:text-red-600 hover:underline">ลบถาวร</button>
                                             </div>
                                         </td>
                                     </tr>
@@ -394,7 +416,7 @@ export default function AdminMealSetsPage() {
                                         return (
                                             <div
                                                 key={idx}
-                                                className="grid grid-cols-12 gap-2 items-center bg-[var(--color-bg-section)] rounded-xl p-2 border border-[var(--color-border)]"
+                                                className="grid grid-cols-12 gap-2 items-start bg-[var(--color-bg-section)] rounded-xl p-2 border border-[var(--color-border)]"
                                             >
                                                 {/* Ingredient Dropdown */}
                                                 <div className="col-span-4">
@@ -411,8 +433,9 @@ export default function AdminMealSetsPage() {
                                                         ))}
                                                     </select>
                                                     {ingInfo && (
-                                                        <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5 px-1">
-                                                            ฿{ingInfo.pricePer100g}/100g · {ingInfo.calories100g} kcal/100g
+                                                        <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5 px-1 leading-tight">
+                                                            <div>฿{ingInfo.pricePer100g}/100g · {ingInfo.calories100g} kcal/100g</div>
+                                                            <div className="mt-0.5 opacity-80">P: {ingInfo.protein100g || 0}g · C: {ingInfo.carbs100g || 0}g · F: {ingInfo.fat100g || 0}g</div>
                                                         </div>
                                                     )}
                                                 </div>
@@ -445,7 +468,7 @@ export default function AdminMealSetsPage() {
                                                 </div>
 
                                                 {/* Remove */}
-                                                <div className="col-span-1 flex justify-center">
+                                                <div className="col-span-1 flex justify-center mt-1.5">
                                                     <button
                                                         onClick={() => removeRow(idx)}
                                                         disabled={boxRows.length === 1}

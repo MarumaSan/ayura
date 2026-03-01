@@ -3,10 +3,10 @@ import { supabase } from '@/lib/supabase';
 
 export async function POST(request: Request) {
     try {
-        const { userId, gender, age, weight, height, healthGoals } = await request.json();
+        const { userId, gender, age, weight, height, phone, activityLevel, bio, healthGoals } = await request.json();
 
-        if (!userId) {
-            return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+        if (!userId || !phone) {
+            return NextResponse.json({ error: 'User ID and Phone are required' }, { status: 400 });
         }
 
         const { data: updatedUser, error } = await supabase
@@ -16,6 +16,9 @@ export async function POST(request: Request) {
                 age,
                 weight,
                 height,
+                phone,
+                activity_level: activityLevel,
+                bio,
                 health_goal: healthGoals.join(','),
                 is_profile_complete: true
             })

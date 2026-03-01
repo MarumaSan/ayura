@@ -46,8 +46,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             name: body.name,
             description: body.description,
             image: body.image,
-            price_per_grams: body.pricePerGrams,
-            delivery_fee: body.deliveryFee,
             is_active: body.isActive,
             avg_nutrition: avgNutrition,
         };
@@ -82,7 +80,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
                 const boxIngredientsPayload = body.boxIngredients.map((bi: any) => ({
                     mealset_id: id,
                     ingredient_id: bi.ingredientId,
-                    grams_per_week: bi.gramsPerWeek
+                    grams_per_week: bi.gramsPerWeek,
+                    note: bi.note || ''
                 }));
 
                 await supabase
@@ -94,8 +93,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         const compatMealset = {
             ...updated,
             _id: updated.id,
-            pricePerGrams: updated.price_per_grams,
-            deliveryFee: updated.delivery_fee,
             isActive: updated.is_active,
             avgNutrition: updated.avg_nutrition,
             boxIngredients: body.boxIngredients || []
@@ -107,19 +104,32 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
 }
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
+        const url = new URL(req.url);
+        const hardDelete = url.searchParams.get('hard') === 'true';
 
-        const { data: updated, error } = await supabase
-            .from('mealsets')
-            .update({ is_active: false })
-            .eq('id', id)
-            .select()
-            .single();
+        if (hardDelete) {
+            const { error } = await supabase
+                .from('mealsets')
+                .delete()
+                .eq('id', id);
 
-        if (error || !updated) {
-            return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+            if (error) {
+                return NextResponse.json({ success: false, error: 'Failed to hard delete: ' + error.message }, { status: 500 });
+            }
+        } else {
+            const { data: updated, error } = await supabase
+                .from('mealsets')
+                .update({ is_active: false })
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (error || !updated) {
+                return NextResponse.json({ success: false, error: 'Not found or update failed' }, { status: 404 });
+            }
         }
 
         return NextResponse.json({ success: true });

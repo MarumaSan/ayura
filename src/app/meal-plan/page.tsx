@@ -21,6 +21,8 @@ type MealSet = {
     priceMonthly: number;
     avgNutrition: AvgNutrition;
     boxIngredients: { ingredientId: string; gramsPerWeek: number }[];
+    tag?: string;
+    targetBmi?: string;
     // Recommendation fields (populated when logged in)
     score?: number;
     breakdown?: ScoreBreakdown;
@@ -45,6 +47,7 @@ type UserProfile = {
     height?: number;
     age?: number;
     gender?: string;
+    healthGoals?: string[];
 };
 
 export default function MealPlanPage() {
@@ -78,9 +81,9 @@ export default function MealPlanPage() {
     const sizeRecommendation = userTdee ? recommendSizeWithReason(Math.round(userTdee)) : null;
 
     useEffect(() => {
-        const profile = localStorage.getItem('ayuraProfile');
-        if (profile) {
-            const parsed = JSON.parse(profile);
+        const profileStr = localStorage.getItem('ayuraProfile');
+        if (profileStr) {
+            const parsed = JSON.parse(profileStr);
             setIsLoggedIn(true);
             setUserProfile(parsed);
 
@@ -105,15 +108,20 @@ export default function MealPlanPage() {
 
         const fetchMealSets = async () => {
             try {
-                // If logged in, use recommendation API for scored results
                 const profileData = localStorage.getItem('ayuraProfile');
-                const uid = profileData ? (JSON.parse(profileData).userId || JSON.parse(profileData).id) : null;
+                const parsedProfile = profileData ? JSON.parse(profileData) : null;
 
                 let res;
-                if (uid) {
-                    res = await fetch(`/api/meal-sets/recommended?userId=${uid}`);
+                // If the user has at least weight and height, we can use the powerful recommendation algorithm
+                if (parsedProfile && parsedProfile.weight && parsedProfile.height) {
+                    res = await fetch(`/api/meal-sets/recommended`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ profile: parsedProfile })
+                    });
                 }
-                // Fallback to plain meal-sets if not logged in or recommendation fails
+
+                // Fallback to plain meal-sets if not enough data or recommendation fails
                 if (!res || !res.ok) {
                     res = await fetch('/api/meal-sets');
                 }
@@ -377,7 +385,7 @@ export default function MealPlanPage() {
                                         {mealSets.map((set, idx) => {
                                             const hasScore = typeof set.score === 'number';
                                             const isTop = hasScore && idx === 0;
-                                            const isRecommended = hasScore && idx === 0;
+                                            const isRecommended = hasScore ? isTop : (userBmiCategory && set.targetBmi === userBmiCategory);
                                             const scoreColor = (set.score || 0) >= 70 ? 'from-green-500 to-emerald-500' : (set.score || 0) >= 40 ? 'from-amber-500 to-yellow-500' : 'from-gray-400 to-gray-500';
                                             return (
                                                 <div
@@ -389,6 +397,11 @@ export default function MealPlanPage() {
                                                     {isRecommended && (
                                                         <span className="absolute -top-3 left-4 px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] text-white shadow z-10 flex items-center gap-1">
                                                             <span>✨</span> <span>แนะนำสำหรับคุณ</span>
+                                                        </span>
+                                                    )}
+                                                    {set.tag && !isRecommended && (
+                                                        <span className="absolute -top-3 left-4 px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] text-white shadow z-10">
+                                                            {set.tag}
                                                         </span>
                                                     )}
                                                     {/* Recommendation Score Badge */}

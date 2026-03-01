@@ -111,6 +111,9 @@ export default function AdminPage() {
                             <Link href="/admin/inventory" className="btn-outline !py-2 !px-4 text-sm">
                                 จัดการสต็อก 📋
                             </Link>
+                            <Link href="/admin/recipes" className="btn-outline !py-2 !px-4 text-sm">
+                                จัดการสูตรอาหาร 🥗
+                            </Link>
                             <Link href="/admin/mealsets" className="btn-outline !py-2 !px-4 text-sm">
                                 จัดการเซ็ต 🍱
                             </Link>

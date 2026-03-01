@@ -220,7 +220,7 @@ export default function Navbar() {
                                                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">ข้อมูลสุขภาพ</span>
                                                         </div>
                                                         <Link
-                                                            href="/dashboard"
+                                                            href="/profile"
                                                             onClick={() => setIsDropdownOpen(false)}
                                                             className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-[var(--color-primary)] transition-all"
                                                         >
@@ -322,7 +322,7 @@ export default function Navbar() {
                                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">ข้อมูลสุขภาพ</span>
                                     </div>
                                     <Link
-                                        href="/dashboard"
+                                        href="/profile"
                                         onClick={() => setIsOpen(false)}
                                         className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-700 bg-white/50 hover:bg-[var(--color-primary)]/10 transition-colors border border-gray-100"
                                     >

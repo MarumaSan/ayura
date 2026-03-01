@@ -24,10 +24,10 @@ export async function GET() {
             _id: ms.id,
             priceWeekly: ms.price_weekly,
             priceMonthly: ms.price_monthly,
-            pricePerGrams: ms.price_per_grams,
-            deliveryFee: ms.delivery_fee,
             isActive: ms.is_active,
             avgNutrition: ms.avg_nutrition,
+            targetBmi: ms.target_bmi,
+            tag: ms.tag,
             createdAt: ms.created_at,
             updatedAt: ms.updated_at,
             boxIngredients: (ms.mealset_box_ingredients || []).map((bi: any) => ({

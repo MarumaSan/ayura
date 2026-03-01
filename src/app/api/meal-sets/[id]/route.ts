@@ -27,8 +27,6 @@ export async function GET(
         const compatMealSet = {
             ...mealSet,
             _id: mealSet.id,
-            pricePerGrams: mealSet.price_per_grams,
-            deliveryFee: mealSet.delivery_fee,
             isActive: mealSet.is_active,
             avgNutrition: mealSet.avg_nutrition,
             createdAt: mealSet.created_at,

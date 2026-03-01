@@ -108,12 +108,24 @@ export default function OrdersPage() {
                         <span>/</span>
                         <span>คำสั่งซื้อ</span>
                     </div>
-                    <h1 className="text-3xl font-bold text-gradient mb-2">
-                        📦 จัดการคำสั่งซื้อ
-                    </h1>
-                    <p className="text-[var(--color-text-light)]">
-                        ยืนยันการชำระเงินและจัดการออเดอร์
-                    </p>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <h1 className="text-3xl font-bold text-gradient mb-2">
+                                📦 จัดการคำสั่งซื้อ
+                            </h1>
+                            <p className="text-[var(--color-text-light)]">
+                                ยืนยันการชำระเงินและจัดการออเดอร์
+                            </p>
+                        </div>
+                        <div className="flex gap-2 mt-4 sm:mt-0">
+                            <Link href="/admin/recipes" className="btn-outline !py-2 !px-4 text-sm">
+                                จัดการสูตรอาหาร 🥗
+                            </Link>
+                            <Link href="/admin/mealsets" className="btn-outline !py-2 !px-4 text-sm">
+                                จัดการเซ็ต 🍱
+                            </Link>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Summary Cards */}

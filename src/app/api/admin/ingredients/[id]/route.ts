@@ -9,17 +9,16 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
         const updatePayload: any = {
             name: body.name,
             name_english: body.nameEnglish,
+            category: body.category,
             image: body.image,
-            community_id: body.communityId,
+            community: body.community,
             in_stock: body.inStock,
-            unit_type: body.unitType,
+            note: body.note,
             calories_100g: body.calories100g,
             protein_100g: body.protein100g,
             carbs_100g: body.carbs100g,
             fat_100g: body.fat100g,
-            price_per_100g: body.pricePer100g,
-            grams_per_unit: body.gramsPerUnit,
-            category: body.category
+            price_per_100g: body.pricePer100g
         };
 
         // Remove undefined keys so we don't accidentally overwrite fields with null
@@ -44,15 +43,16 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
             ...updated,
             nameEnglish: updated.name_english,
             _id: updated.id,
-            communityId: updated.community_id,
+            communityId: null,
+            community: updated.community,
             inStock: updated.in_stock,
-            unitType: updated.unit_type,
+            unitType: 'grams',
             calories100g: updated.calories_100g,
             protein100g: updated.protein_100g,
             carbs100g: updated.carbs_100g,
             fat100g: updated.fat_100g,
             pricePer100g: updated.price_per_100g,
-            gramsPerUnit: updated.grams_per_unit
+            gramsPerUnit: 100
         };
 
         return NextResponse.json({ success: true, data: compatIngredient });

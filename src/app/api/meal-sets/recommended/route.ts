@@ -4,32 +4,16 @@ import { scoreMealSets, computeUserTargets } from '@/lib/mealRecommender';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
+export async function POST(request: Request) {
     try {
-        const { searchParams } = new URL(request.url);
-        const userId = searchParams.get('userId');
+        const body = await request.json();
+        const profile = body.profile;
 
-        if (!userId) {
-            return NextResponse.json({ error: 'userId is required' }, { status: 400 });
-        }
-
-        // 1. Fetch user
-        const { data: user, error: userError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', userId)
-            .single();
-
-        if (userError || !user) {
-            return NextResponse.json({ error: 'User not found' }, { status: 404 });
-        }
-
-        // 2. Ensure profile is complete
-        if (!user.weight || !user.height || !user.age) {
+        if (!profile || !profile.weight || !profile.height) {
             return NextResponse.json({ error: 'User profile incomplete — cannot compute recommendations' }, { status: 400 });
         }
 
-        // 3. Fetch active meal sets
+        // Fetch active meal sets
         const { data: mealSets, error: msError } = await supabase
             .from('mealsets')
             .select(`
@@ -50,10 +34,10 @@ export async function GET(request: Request) {
             _id: ms.id,
             priceWeekly: ms.price_weekly,
             priceMonthly: ms.price_monthly,
-            pricePerGrams: ms.price_per_grams,
-            deliveryFee: ms.delivery_fee,
             isActive: ms.is_active,
             avgNutrition: ms.avg_nutrition,
+            targetBmi: ms.target_bmi,
+            tag: ms.tag,
             createdAt: ms.created_at,
             updatedAt: ms.updated_at,
             boxIngredients: (ms.mealset_box_ingredients || []).map((bi: any) => ({
@@ -62,17 +46,17 @@ export async function GET(request: Request) {
             }))
         }));
 
-        // 4. Compute user targets
+        // Compute user targets using the parsed profile
         const userProfile = {
-            weight: user.weight,
-            height: user.height,
-            age: user.age,
-            gender: user.gender || 'ชาย',
-            healthGoals: user.health_goal ? user.health_goal.split(',') : [],
+            weight: profile.weight,
+            height: profile.height,
+            age: profile.age || 30, // Use default 30 if age is not provided
+            gender: profile.gender || 'ชาย',
+            healthGoals: Array.isArray(profile.healthGoals) ? profile.healthGoals : [],
         };
         const targets = computeUserTargets(userProfile);
 
-        // 5. Score and sort meal sets
+        // Score and sort meal sets
         const scored = scoreMealSets(userProfile, compatMealSets as any[]);
 
         return NextResponse.json({

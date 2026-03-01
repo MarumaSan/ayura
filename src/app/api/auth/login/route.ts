@@ -58,9 +58,11 @@ export async function POST(request: Request) {
                 email: user.email,
                 points: user.points,
                 isProfileComplete: isComplete,
+                weight: user.weight,
                 height: user.height,
                 age: user.age,
                 gender: user.gender,
+                healthGoals: user.health_goal ? user.health_goal.split(',') : [],
                 balance: user.balance || 0,
                 role: user.role
             }

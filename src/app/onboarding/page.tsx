@@ -18,6 +18,9 @@ export default function OnboardingPage() {
     const [age, setAge] = useState<number | ''>('');
     const [weight, setWeight] = useState<number | ''>('');
     const [height, setHeight] = useState<number | ''>('');
+    const [phone, setPhone] = useState('');
+    const [activityLevel, setActivityLevel] = useState('ปานกลาง');
+    const [bio, setBio] = useState('');
     const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
 
     const [loading, setLoading] = useState(false);
@@ -56,7 +59,7 @@ export default function OnboardingPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!age || !weight || !height || selectedGoals.length === 0) {
+        if (!age || !weight || !height || !phone || selectedGoals.length === 0) {
             setError('กรุณากรอกข้อมูลให้ครบและเลือกเป้าหมายอย่างน้อย 1 อย่าง');
             return;
         }
@@ -74,6 +77,9 @@ export default function OnboardingPage() {
                     age: Number(age),
                     weight: Number(weight),
                     height: Number(height),
+                    phone,
+                    activityLevel,
+                    bio,
                     healthGoals: selectedGoals
                 })
             });
@@ -188,6 +194,47 @@ export default function OnboardingPage() {
                                     placeholder="เช่น 165"
                                 />
                             </div>
+                        </div>
+
+                        {/* Additional Info Line */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-[var(--color-text-light)] ml-1">เบอร์โทรศัพท์</label>
+                                <input
+                                    type="tel"
+                                    value={phone}
+                                    onChange={(e) => setPhone(e.target.value)}
+                                    className="w-full px-4 py-3 bg-[var(--color-bg-section)] border border-[var(--color-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 text-[var(--color-text)]"
+                                    placeholder="เช่น 0812345678"
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-[var(--color-text-light)] ml-1">ระดับการทำกิจกรรม</label>
+                                <select
+                                    value={activityLevel}
+                                    onChange={(e) => setActivityLevel(e.target.value)}
+                                    className="w-full px-4 py-3 bg-[var(--color-bg-section)] border border-[var(--color-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 text-[var(--color-text)] appearance-none"
+                                >
+                                    <option value="น้อยมาก">น้อยมาก (ไม่ค่อยออกกำลังกาย)</option>
+                                    <option value="น้อย">น้อย (ออกกำลังกาย 1-3 วัน/สัปดาห์)</option>
+                                    <option value="ปานกลาง">ปานกลาง (ออกกำลังกาย 3-5 วัน/สัปดาห์)</option>
+                                    <option value="สูง">สูง (ออกกำลังกาย 6-7 วัน/สัปดาห์)</option>
+                                    <option value="สูงมาก">สูงมาก (ออกกำลังกายอย่างหนักทุกวัน)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Bio */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-[var(--color-text-light)] ml-1">ประวัติส่วนตัวสั้นๆ (Bio)</label>
+                            <textarea
+                                value={bio}
+                                onChange={(e) => setBio(e.target.value)}
+                                rows={2}
+                                className="w-full px-4 py-3 bg-[var(--color-bg-section)] border border-[var(--color-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 text-[var(--color-text)] resize-none"
+                                placeholder="บอกเราเกี่ยวกับตัวคุณสักนิด..."
+                            />
                         </div>
 
                         {/* Health Goals */}

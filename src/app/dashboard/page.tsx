@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { calcBMI, getBmiCategory, calcBMR, calcTDEE, calcCalorieTarget, calcMacroTargets } from '@/lib/bmiCalculator';
 
 export default function DashboardPage() {
+    const router = useRouter();
     const [profile, setProfile] = useState<any>(null);
     const [activeTab, setActiveTab] = useState<'meals' | 'box'>('meals');
     const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
@@ -39,6 +41,28 @@ export default function DashboardPage() {
                     if (res.ok) {
                         const data = await res.json();
                         setProfile(data.profile);
+
+                        // Redirection logic for incomplete profile
+                        if (data.profile.isProfileComplete === false) {
+                            router.push('/onboarding');
+                            return;
+                        }
+
+                        // Sync local storage session
+                        const updatedSession = {
+                            ...sessionData,
+                            isProfileComplete: data.profile.isProfileComplete,
+                            weight: data.profile.weight,
+                            height: data.profile.height,
+                            age: data.profile.age,
+                            gender: data.profile.gender,
+                            healthGoals: data.profile.healthGoals
+                        };
+                        localStorage.setItem('ayuraProfile', JSON.stringify(updatedSession));
+                    } else if (res.status === 404) {
+                        localStorage.removeItem('ayuraProfile');
+                        router.push('/login');
+                        return;
                     } else {
                         setProfile({ name: sessionData.name || 'ผู้ใช้', age: 30, gender: 'ไม่ระบุ', weight: 60, height: 165, healthGoals: ['รักษาสุขภาพ'] });
                     }
@@ -125,10 +149,10 @@ export default function DashboardPage() {
     const macroTargets = calcMacroTargets(targetCal, userGoals);
     const bmrResult = { bmr: bmrVal, tdee: tdeeVal, targetCalories: targetCal, targetProtein: macroTargets.protein, targetCarbs: macroTargets.carbs, targetFat: macroTargets.fat };
 
-    const mealTypeLabels: Record<string, { emoji: string; time: string }> = {
-        'เช้า': { emoji: '🌅', time: '07:00 - 08:30' },
-        'กลางวัน': { emoji: '☀️', time: '12:00 - 13:00' },
-        'เย็น': { emoji: '🌙', time: '18:00 - 19:00' },
+    const mealTypeLabels: Record<string, { emoji: string; time: string; color?: string }> = {
+        'เช้า': { emoji: '🍳', time: '07:00 - 09:00', color: 'bg-orange-100 text-orange-700' },
+        'กลางวัน': { emoji: '🥗', time: '12:00 - 13:30', color: 'bg-green-100 text-green-700' },
+        'เย็น': { emoji: '🍛', time: '18:00 - 20:00', color: 'bg-purple-100 text-purple-700' },
         'ว่าง': { emoji: '🍵', time: '15:00 - 16:00' },
     };
 
@@ -482,7 +506,12 @@ export default function DashboardPage() {
                                                 </div>
                                             )}
                                         </div>
-                                        {dailyMenu ? (
+                                        {!dailyMenu ? (
+                                            <div className="glass-card p-8 text-center bg-white/50 animate-pulse">
+                                                <div className="text-4xl mb-3">🍽️</div>
+                                                <p className="text-[var(--color-text-muted)] animate-bounce">กำลังโหลดเมนูแนะนำ...</p>
+                                            </div>
+                                        ) : (dailyMenu.breakfast || dailyMenu.lunch || dailyMenu.dinner) ? (
                                             <>
                                                 {[
                                                     { key: 'breakfast', label: 'เช้า', menu: dailyMenu.breakfast },
@@ -505,7 +534,7 @@ export default function DashboardPage() {
                                                                     </div>
                                                                     <div className="flex-1 min-w-0">
                                                                         <div className="flex flex-wrap items-center gap-2 mb-1">
-                                                                            <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+                                                                            <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${mealInfo.color || 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]'}`}>
                                                                                 {mealInfo.emoji} {label}
                                                                             </span>
                                                                             {mealInfo.time && <span className="text-xs text-[var(--color-text-muted)]">{mealInfo.time}</span>}
@@ -588,9 +617,14 @@ export default function DashboardPage() {
                                                 })}
                                             </>
                                         ) : (
-                                            <div className="glass-card p-8 text-center">
-                                                <div className="text-4xl mb-3">🍽️</div>
-                                                <p className="text-[var(--color-text-muted)]">กำลังโหลดเมนูแนะนำ...</p>
+                                            <div className="bg-white/50 backdrop-blur-sm border border-dashed border-[var(--color-border)] rounded-2xl p-10 text-center animate-fade-in">
+                                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                                                    🥣
+                                                </div>
+                                                <h4 className="font-bold text-[var(--color-text)] mb-2">ยังไม่มีเมนูแนะนำที่ตรงกับวัตถุดิบในกล่อง</h4>
+                                                <p className="text-sm text-[var(--color-text-muted)] max-w-xs mx-auto leading-relaxed">
+                                                    ระบบกำลังตรวจสอบสูตรอาหารที่เหมาะสมกับวัตถุดิบในเซ็ตของคุณเพิ่มเติม โปรดรอแอดมินอัปเดตข้อมูลเร็วๆ นี้ ✨
+                                                </p>
                                             </div>
                                         )}
                                     </div>
@@ -698,7 +732,12 @@ export default function DashboardPage() {
                                         <p className="text-xs text-[var(--color-text-muted)] px-1">
                                             🍽️ เมนูแนะนำวันนี้ — เปลี่ยนทุกวัน ไม่ซ้ำกับเมื่อวาน
                                         </p>
-                                        {dailyMenu ? (
+                                        {!dailyMenu ? (
+                                            <div className="glass-card p-8 text-center bg-white/50 animate-pulse">
+                                                <div className="text-4xl mb-3">🍽️</div>
+                                                <p className="text-[var(--color-text-muted)]">กำลังโหลดเมนูแนะนำ...</p>
+                                            </div>
+                                        ) : (dailyMenu.breakfast || dailyMenu.lunch || dailyMenu.dinner) ? (
                                             <>
                                                 {[
                                                     { key: 'breakfast', label: 'เช้า', menu: dailyMenu.breakfast },
@@ -769,9 +808,14 @@ export default function DashboardPage() {
                                                 })}
                                             </>
                                         ) : (
-                                            <div className="glass-card p-8 text-center">
-                                                <div className="text-4xl mb-3">🍽️</div>
-                                                <p className="text-[var(--color-text-muted)]">กำลังโหลดเมนูแนะนำ...</p>
+                                            <div className="bg-white/50 backdrop-blur-sm border border-dashed border-[var(--color-border)] rounded-2xl p-10 text-center animate-fade-in">
+                                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                                                    🥣
+                                                </div>
+                                                <h4 className="font-bold text-[var(--color-text)] mb-2">ยังไม่มีเมนูแนะนำที่ตรงกับวัตถุดิบในกล่อง</h4>
+                                                <p className="text-sm text-[var(--color-text-muted)] max-w-xs mx-auto leading-relaxed">
+                                                    ระบบ AI กำลังตรวจสอบสูตรอาหารที่เหมาะสมกับวัตถุดิบในเซ็ตของคุณเพิ่มเติม โปรดรอแอดมินอัปเดตข้อมูลเร็วๆ นี้ค่ะ ✨
+                                                </p>
                                             </div>
                                         )}
                                     </div>
