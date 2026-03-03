@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET() {
-    console.log("TEST ROUTE HIT - Schema Check Psql");
     // Temporarily fix the usr-2 ID with a newline
     const { data: fetchUser, error: fetchErr } = await supabaseAdmin
         .from('users')

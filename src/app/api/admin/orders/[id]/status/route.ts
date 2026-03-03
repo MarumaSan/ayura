@@ -14,9 +14,20 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
         const updateData: any = { status };
 
-        // When status changes to Delivered, record the exact delivery date (Thai Time)
+        // When status changes to Delivered, record the timestamp
         if (status === 'จัดส่งสำเร็จ') {
             updateData.delivery_date = getThaiDate().toISOString();
+        }
+
+        // First check if order exists
+        const { data: existingOrder, error: findError } = await supabaseAdmin
+            .from('orders')
+            .select('id')
+            .eq('id', params.id)
+            .single();
+
+        if (findError || !existingOrder) {
+            return NextResponse.json({ error: 'Order not found', details: findError?.message }, { status: 404 });
         }
 
         const { data: updatedOrder, error } = await supabaseAdmin
@@ -26,13 +37,12 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
             .select()
             .single();
 
-        if (error || !updatedOrder) {
-            return NextResponse.json({ error: 'Order not found or update failed' }, { status: 404 });
+        if (error) {
+            return NextResponse.json({ error: 'Update failed', details: error.message }, { status: 500 });
         }
 
         return NextResponse.json({ success: true, order: updatedOrder });
     } catch (error: any) {
-        console.error('Update order status error:', error);
         return NextResponse.json(
             { error: 'Failed to update order status', details: error.message },
             { status: 500 }

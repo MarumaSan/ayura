@@ -1,5 +1,5 @@
 export interface CommunityRow {
-    id: string; // 'com-xxx'
+    id: number; // BIGSERIAL
     name: string;
     address?: string;
     note?: string;

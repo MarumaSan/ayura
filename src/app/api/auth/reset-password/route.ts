@@ -39,7 +39,6 @@ export async function POST(request: Request) {
             .eq('id', user.id);
 
         if (updateError) {
-            console.error('Password update error:', updateError);
             return NextResponse.json(
                 { error: 'ไม่สามารถเปลี่ยนรหัสผ่านได้ กรุณาลองใหม่อีกครั้ง' },
                 { status: 500 }

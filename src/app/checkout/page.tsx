@@ -17,6 +17,9 @@ export default function CheckoutPage() {
 
     const [address, setAddress] = useState('');
     const [phone, setPhone] = useState('');
+    const [userCoupons, setUserCoupons] = useState<any[]>([]);
+    const [selectedCoupon, setSelectedCoupon] = useState<any>(null);
+    const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
     const [showSuccess, setShowSuccess] = useState(false);
     const [profileName, setProfileName] = useState('');
     const [profile, setProfile] = useState<any>(null);
@@ -83,7 +86,7 @@ export default function CheckoutPage() {
                     setBoxItems(combined);
                 }
             } catch (e) {
-                console.error('Error loading checkout data', e);
+                // Silently handle checkout data loading error
             } finally {
                 setLoading(false);
             }
@@ -92,8 +95,63 @@ export default function CheckoutPage() {
         loadData();
     }, [router]);
 
-    const deliveryFee = 50;
-    const subtotal = finalPrice > deliveryFee ? finalPrice - deliveryFee : finalPrice;
+    // Calculate discount (no delivery fee - already included in box price)
+    const discountAmount = appliedCoupon ? appliedCoupon.discountAmount : 0;
+    const totalAfterDiscount = Math.max(0, finalPrice - discountAmount);
+
+    // Fetch user's coupons on load
+    useEffect(() => {
+        const fetchCoupons = async () => {
+            const stored = localStorage.getItem('ayuraProfile');
+            if (!stored) return;
+            const sessionData = JSON.parse(stored);
+            
+            try {
+                const res = await fetch(`/api/user/redeem?email=${sessionData.email}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    // Filter only discount coupons that are active
+                    const discountCoupons = (data.activeCoupons || []).filter(
+                        (c: any) => c.discount_type !== 'free_shipping'
+                    );
+                    setUserCoupons(discountCoupons);
+                }
+            } catch (error) {
+                // Silently handle coupon fetch error
+            }
+        };
+        
+        fetchCoupons();
+    }, []);
+
+    const applySelectedCoupon = () => {
+        if (!selectedCoupon) return;
+        
+        // Calculate discount on order total
+        let discountAmount = 0;
+        let discountDescription = '';
+
+        if (selectedCoupon.discount_type === 'fixed') {
+            discountAmount = selectedCoupon.discount_value;
+            discountDescription = `ส่วนลด ${selectedCoupon.discount_value} บาท`;
+        } else if (selectedCoupon.discount_type === 'percentage') {
+            discountAmount = (finalPrice * selectedCoupon.discount_value) / 100;
+            discountDescription = `ส่วนลด ${selectedCoupon.discount_value}%`;
+        }
+
+        discountAmount = Math.min(discountAmount, finalPrice);
+
+        setAppliedCoupon({
+            ...selectedCoupon,
+            discountAmount,
+            description: discountDescription
+        });
+    };
+
+    const removeCoupon = () => {
+        setAppliedCoupon(null);
+        setSelectedCoupon(null);
+    };
 
     // Reverse engineer discount display if it's monthly
     const isMonthly = plan === 'monthly';
@@ -127,7 +185,7 @@ export default function CheckoutPage() {
             const profileData = await profileRes.json();
             const actualBalance = profileData.profile?.balance || 0;
 
-            if (actualBalance < (finalPrice + deliveryFee)) {
+            if (actualBalance < finalPrice) {
                 alert(`ยอดเงินใน Wallet ไม่เพียงพอ (ปัจจุบัน: ฿${actualBalance}) กรุณาเติมเงินเพิ่ม`);
                 setIsProcessing(false);
                 return;
@@ -135,7 +193,7 @@ export default function CheckoutPage() {
 
             await submitOrder(sessionData, 'WALLET');
         } catch (err) {
-            console.error('Order error', err);
+            // Silently handle order error
         } finally {
             setIsProcessing(false);
         }
@@ -150,7 +208,7 @@ export default function CheckoutPage() {
             const sessionData = JSON.parse(stored);
             await submitOrder(sessionData, 'PROMPTPAY');
         } catch (err) {
-            console.error('PromptPay confirm error', err);
+            // Silently handle PromptPay confirm error
         } finally {
             setIsProcessing(false);
         }
@@ -159,38 +217,71 @@ export default function CheckoutPage() {
     const [createdOrderId, setCreatedOrderId] = useState<string>('');
 
     const submitOrder = async (sessionData: any, method: 'WALLET' | 'PROMPTPAY') => {
+        const orderPayload = {
+            userId: sessionData.userId || sessionData.id,
+            customerName: profileName,
+            address,
+            phone,
+            totalPrice: totalAfterDiscount,
+            originalPrice: finalPrice,
+            discountAmount: appliedCoupon?.discountAmount || 0,
+            couponCode: appliedCoupon?.coupon_code || appliedCoupon?.code || null,
+            mealSetId: mealSet?._id || mealSet?.id,
+            mealSetName: mealSet?.name || '',
+            plan,
+            boxSize,
+            sizeMultiplier,
+            paymentMethod: method,
+        };
+        
         const res = await fetch('/api/user/orders', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                userId: sessionData.userId || sessionData.id,
-                customerName: profileName,
-                address,
-                phone,
-                totalPrice: finalPrice + deliveryFee,
-                mealSetId: mealSet?._id || mealSet?.id,
-                mealSetName: mealSet?.name || '',
-                plan,
-                boxSize,
-                sizeMultiplier,
-                paymentMethod: method,
-            })
+            body: JSON.stringify(orderPayload)
         });
-
+        
         if (res.ok) {
             const data = await res.json();
+            
+            // Mark coupon as used if applied
+            if (appliedCoupon) {
+                const couponCodeToUse = appliedCoupon.coupon_code || appliedCoupon.code;
+                if (couponCodeToUse) {
+                    try {
+                        const couponRes = await fetch('/api/coupons/use', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                couponCode: couponCodeToUse,
+                                orderId: data.orderId
+                            })
+                        });
+                        if (!couponRes.ok) {
+                            // Silently handle error
+                        }
+                    } catch (err) {
+                        // Silently handle coupon mark-as-used error
+                    }
+                }
+            }
+            
             setCreatedOrderId(data.orderId);
             setShowQR(false);
-            setShowPendingPopup(true); // Both flows show pending popup
+            setShowPendingPopup(true);
         } else {
-            const err = await res.json();
+            const errText = await res.text();
+            let err;
+            try {
+                err = JSON.parse(errText);
+            } catch {
+                err = { error: errText || 'Unknown error', message: errText || 'Unknown error' };
+            }
             if (err.error === 'STOCK_ERROR') {
-                setShowQR(false); // Close QR just in case it's somehow open (it shouldn't be yet)
+                setShowQR(false);
                 setShowStockErrorPopup(true);
             } else {
                 alert(`เกิดข้อผิดพลาด: ${err.error || err.message || 'Unknown error'}`);
             }
-            console.error('Failed to create order', err);
         }
     };
 
@@ -354,9 +445,9 @@ export default function CheckoutPage() {
                                                 </div>
                                             </div>
                                             {item.boxNote && (
-                                                <div className="mt-1.5 ml-13 flex items-start gap-1 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
+                                                <div className="mt-2 ml-12 flex items-start gap-1 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">
                                                     <span className="shrink-0">📝</span>
-                                                    <span>{item.boxNote}</span>
+                                                    <span className="leading-relaxed">{item.boxNote}</span>
                                                 </div>
                                             )}
                                         </div>
@@ -371,13 +462,60 @@ export default function CheckoutPage() {
                             <div className="border-t border-[var(--color-border)] py-3 space-y-3">
                                 <div className="flex justify-between text-sm">
                                     <span className="text-[var(--color-text-light)]">
-                                        ค่าวัตถุดิบสุทธิ {isMonthly ? '(ลดแล้ว 10%)' : ''}
+                                        ราคา{isMonthly ? ' (รายเดือน)' : ' (รายสัปดาห์)'}
                                     </span>
-                                    <span>฿{subtotal}</span>
+                                    <span>฿{finalPrice}</span>
                                 </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-[var(--color-text-light)]">ค่าจัดส่ง</span>
-                                    <span>฿{deliveryFee}</span>
+                                
+                                {/* Coupon Dropdown */}
+                                <div className="mt-3 pt-3 border-t border-dashed border-[var(--color-border)]">
+                                    {appliedCoupon ? (
+                                        <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                                            <div>
+                                                <p className="text-sm font-medium text-green-800">
+                                                    {appliedCoupon.coupon_code || appliedCoupon.code}
+                                                </p>
+                                                <p className="text-xs text-green-600">
+                                                    {appliedCoupon.description} - ฿{appliedCoupon.discountAmount}
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={removeCoupon}
+                                                className="px-3 py-1 text-sm bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                                            >
+                                                ยกเลิก
+                                            </button>
+                                        </div>
+                                    ) : userCoupons.length > 0 ? (
+                                        <div className="flex gap-2">
+                                            <select
+                                                value={selectedCoupon?.id || ''}
+                                                onChange={(e) => {
+                                                    const coupon = userCoupons.find(c => c.id.toString() === e.target.value);
+                                                    setSelectedCoupon(coupon || null);
+                                                }}
+                                                className="flex-1 px-3 py-2 text-sm border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                                            >
+                                                <option value="">เลือกคูปองส่วนลด</option>
+                                                {userCoupons.map((coupon) => (
+                                                    <option key={coupon.id} value={coupon.id}>
+                                                        {coupon.coupon_code} - {coupon.discount_type === 'percentage' ? `ลด ${coupon.discount_value}%` : `ลด ฿${coupon.discount_value}`}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <button
+                                                onClick={applySelectedCoupon}
+                                                disabled={!selectedCoupon}
+                                                className="px-4 py-2 text-sm bg-[var(--color-primary)] text-white rounded-lg hover:bg-[var(--color-primary-dark)] transition-colors disabled:opacity-50"
+                                            >
+                                                ใช้
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-[var(--color-text-muted)]">
+                                            ไม่มีคูปองส่วนลด
+                                        </p>
+                                    )}
                                 </div>
                             </div>
 
@@ -386,8 +524,13 @@ export default function CheckoutPage() {
                                     <span className="font-bold text-[var(--color-text)]">ยอดรวมทั้งสิ้น</span>
                                     <div className="text-right">
                                         <div className="text-3xl font-extrabold text-[var(--color-primary)]">
-                                            ฿{finalPrice + deliveryFee}
+                                            ฿{totalAfterDiscount}
                                         </div>
+                                        {appliedCoupon && (
+                                            <div className="text-xs text-green-600 mt-1">
+                                                ประหยัดได้ ฿{appliedCoupon.discountAmount}
+                                            </div>
+                                        )}
                                         <div className="text-xs text-[var(--color-text-muted)] mt-1">
                                             (รวม VAT แล้ว)
                                         </div>
@@ -450,14 +593,14 @@ export default function CheckoutPage() {
                         <div className="bg-white p-4 border-2 border-t-0 border-blue-900 rounded-b-xl mx-4 mb-6 shadow-sm flex flex-col items-center justify-center min-h-[200px]">
                             <div className="w-48 h-48 bg-white flex items-center justify-center mb-4 border border-gray-100 rounded-lg overflow-hidden">
                                 <QRCodeSVG
-                                    value={generatePayload(process.env.NEXT_PUBLIC_PROMPTPAY_NUMBER || '0000000000', { amount: finalPrice + deliveryFee })}
+                                    value={generatePayload(process.env.NEXT_PUBLIC_PROMPTPAY_NUMBER || '0000000000', { amount: totalAfterDiscount })}
                                     size={180}
                                     level="L"
                                     includeMargin={false}
                                 />
                             </div>
                             <div className="text-sm text-gray-500 mb-1">ยอดชำระ</div>
-                            <div className="text-3xl font-bold text-[var(--color-primary)]">฿{finalPrice + deliveryFee}</div>
+                            <div className="text-3xl font-bold text-[var(--color-primary)]">฿{totalAfterDiscount}</div>
                         </div>
                         <p className="text-sm text-gray-500 mb-6 px-4">
                             กรุณาสแกน QR Code ด้วยแอพพลิเคชั่นธนาคารของคุณ เพื่อชำระเงิน

@@ -11,7 +11,8 @@ export async function GET() {
                 *,
                 mealset_box_ingredients (
                     ingredient_id,
-                    grams_per_week
+                    grams_per_week,
+                    note
                 )
             `)
             .eq('is_active', true)
@@ -32,7 +33,8 @@ export async function GET() {
             updatedAt: ms.updated_at,
             boxIngredients: (ms.mealset_box_ingredients || []).map((bi: any) => ({
                 ingredientId: bi.ingredient_id,
-                gramsPerWeek: bi.grams_per_week
+                gramsPerWeek: bi.grams_per_week,
+                note: bi.note
             }))
         }));
 

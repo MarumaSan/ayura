@@ -44,7 +44,6 @@ export async function GET() {
 
         return NextResponse.json({ success: true, data: enriched });
     } catch (error: any) {
-        console.error('Failed to fetch topup requests', error);
         return NextResponse.json({ error: 'Failed to fetch', details: error.message }, { status: 500 });
     }
 }

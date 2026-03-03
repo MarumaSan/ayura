@@ -1,6 +1,6 @@
 export interface TopupRequestRow {
-    id: string; // 'top-xxx'
-    user_id: string; // references users(id)
+    id: number; // BIGSERIAL
+    user_id: number; // references users(id) - bigint
     amount: number;
     status: 'pending' | 'approved' | 'rejected';
     created_at: string;

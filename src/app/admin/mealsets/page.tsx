@@ -56,7 +56,7 @@ export default function AdminMealSetsPage() {
             if (msJson.success) setMealSets(msJson.data);
             if (ingJson.success) setIngredients(ingJson.data);
         } catch (e) {
-            console.error(e);
+            // Silently handle fetch error
         } finally {
             setLoading(false);
         }
@@ -125,7 +125,7 @@ export default function AdminMealSetsPage() {
     const handleSave = async () => {
         if (!formData.id.trim()) return alert('กรุณาระบุ ID ของเซ็ต');
         if (!formData.name.trim()) return alert('กรุณาระบุชื่อเซ็ต');
-        const validRows = boxRows.filter((r) => r.ingredientId && r.gramsPerWeek > 0);
+        const validRows = boxRows.filter((r) => r.ingredientId && Number(r.gramsPerWeek) > 0);
         if (validRows.length === 0) return alert('กรุณาเพิ่มวัตถุดิบอย่างน้อย 1 รายการ');
 
         setSaving(true);
@@ -147,7 +147,6 @@ export default function AdminMealSetsPage() {
                 alert(data.error || 'เกิดข้อผิดพลาดในการบันทึก');
             }
         } catch (e) {
-            console.error(e);
             alert('เกิดข้อผิดพลาด');
         } finally {
             setSaving(false);
@@ -375,6 +374,7 @@ export default function AdminMealSetsPage() {
                                     <label className="block text-sm font-medium mb-1">ราคา/สัปดาห์ (฿)</label>
                                     <input
                                         type="number"
+                                        min="0"
                                         value={formData.priceWeekly}
                                         onChange={(e) => setFormData({ ...formData, priceWeekly: Number(e.target.value) })}
                                         className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] text-sm"

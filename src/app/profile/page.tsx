@@ -16,6 +16,8 @@ interface UserProfile {
     activityLevel: string;
     bio: string;
     healthGoals: string[];
+    referralCode?: string;
+    referredByCode?: string;
 }
 
 export default function ProfilePage() {
@@ -23,6 +25,8 @@ export default function ProfilePage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
+    const [referralInput, setReferralInput] = useState('');
+    const [referralMessage, setReferralMessage] = useState('');
 
     const [profile, setProfile] = useState<UserProfile>({
         id: '',
@@ -35,7 +39,7 @@ export default function ProfilePage() {
         height: '',
         activityLevel: '',
         bio: '',
-        healthGoals: []
+        healthGoals: [],
     });
 
     useEffect(() => {
@@ -65,7 +69,9 @@ export default function ProfilePage() {
                             height: data.profile.height || '',
                             activityLevel: data.profile.activityLevel || '',
                             bio: data.profile.bio || '',
-                            healthGoals: data.profile.healthGoals || []
+                            healthGoals: data.profile.healthGoals || [],
+                            referralCode: data.profile.referralCode || '',
+                            referredByCode: data.profile.referredByCode || ''
                         });
                     }
                 } else if (res.status === 404) {
@@ -109,6 +115,40 @@ export default function ProfilePage() {
             }
         });
     };
+
+    const handleApplyReferralCode = async () => {
+        if (!referralInput.trim()) {
+            setReferralMessage('กรุณาใส่รหัสอ้างอิง');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/referral/apply', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    referralCode: referralInput.trim().toUpperCase(),
+                    userId: profile.id
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                setReferralMessage('✅ ใช้รหัสอ้างอิงสำเร็จ! รับ 50 แต้ม');
+                setReferralInput('');
+                // Refresh profile to get updated points
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                setReferralMessage(data.error || '❌ รหัสอ้างอิงไม่ถูกต้อง');
+            }
+        } catch (err) {
+            setReferralMessage('❌ เกิดข้อผิดพลาด กรุณาลองใหม่');
+        }
+    };
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -368,6 +408,50 @@ export default function ProfilePage() {
                                 </div>
                             </div>
                         </section>
+
+                        {/* Referral Code Section - Above submit button */}
+                        {!profile.referredByCode && (
+                            <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl border border-purple-200">
+                                <div className="flex items-start gap-4">
+                                    <div className="text-3xl">🎯</div>
+                                    <div className="flex-1">
+                                        <h3 className="font-bold text-gray-800 mb-2">รับโบนัส 50 แต้ม!</h3>
+                                        <p className="text-sm text-gray-600 mb-4">
+                                            มีรหัสอ้างอิงจากเพื่อนหรือไม่? ใส่รหัสเพื่อรับพอยท์พิเศษทันที!
+                                        </p>
+                                        
+                                        <div className="space-y-3">
+                                            <div className="flex gap-3">
+                                                <input
+                                                    type="text"
+                                                    value={referralInput}
+                                                    onChange={(e) => setReferralInput(e.target.value.toUpperCase())}
+                                                    placeholder="AYURA..."
+                                                    className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono uppercase bg-white"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={handleApplyReferralCode}
+                                                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl hover:shadow-lg transition-all"
+                                                >
+                                                    ใช้รหัส
+                                                </button>
+                                            </div>
+                                            
+                                            {referralMessage && (
+                                                <div className={`p-3 rounded-lg text-sm font-medium ${
+                                                    referralMessage.includes('✅') 
+                                                        ? 'bg-green-100 text-green-700' 
+                                                        : 'bg-red-100 text-red-700'
+                                                }`}>
+                                                    {referralMessage}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Submit Button */}
                         <div className="pt-6 border-t border-gray-100 flex justify-end">

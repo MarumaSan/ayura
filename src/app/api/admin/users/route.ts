@@ -28,7 +28,6 @@ async function getAdminUsersHandler(request: NextRequest) {
 
         return NextResponse.json({ success: true, data: compatUsers });
     } catch (error: any) {
-        console.error('Failed to fetch users', error);
         return NextResponse.json({ error: 'Failed to fetch users', details: error.message }, { status: 500 });
     }
 }

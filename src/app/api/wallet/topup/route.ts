@@ -42,7 +42,6 @@ async function topupHandler(request: NextRequest) {
 
         return NextResponse.json({ success: true, requestId: topupRequest.id });
     } catch (error: any) {
-        console.error('Topup request error:', error);
         return NextResponse.json(
             { error: 'Failed to create topup request', details: error.message },
             { status: 500 }

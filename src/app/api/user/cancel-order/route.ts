@@ -22,7 +22,6 @@ export async function PATCH(request: Request) {
 
         return NextResponse.json({ success: true, order: updatedOrder });
     } catch (error: any) {
-        console.error('Cancel order error:', error);
         return NextResponse.json(
             { error: 'Failed to cancel order', details: error.message },
             { status: 500 }

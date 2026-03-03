@@ -45,7 +45,7 @@ export default function AdminRecipesPage() {
             if (msJson.success) setRecipes(msJson.data);
             if (ingJson.success) setIngredients(ingJson.data);
         } catch (error) {
-            console.error('Fetch error:', error);
+            // Silently handle fetch error
         } finally {
             setLoading(false);
         }

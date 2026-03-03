@@ -32,8 +32,11 @@ export async function GET(request: Request) {
                 if (!mostRecentPendingOrder) {
                     mostRecentPendingOrder = order;
                 }
-            } else if (order.status === 'จัดส่งสำเร็จ' && order.delivery_date) {
-                const deliveryDate = new Date(order.delivery_date);
+            } else if (order.status === 'จัดส่งสำเร็จ') {
+                // Use delivery_date (when admin marked as delivered) as the starting point
+                const dateToUse = order.delivery_date || order.created_at;
+                if (!dateToUse) continue;
+                const deliveryDate = new Date(dateToUse);
                 const daysToAdd = order.plan === 'monthly' ? 30 : 7;
                 const expiryDate = new Date(deliveryDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
 
@@ -58,14 +61,18 @@ export async function GET(request: Request) {
 
             // Calculate remaining days for the response
             let remainingDays = null;
-            if (activeOrder.delivery_date && ['จัดส่งสำเร็จ'].includes(activeOrder.status)) {
-                const deliveryDate = new Date(activeOrder.delivery_date);
-                const daysToAdd = activeOrder.plan === 'monthly' ? 30 : 7;
-                const expiryDate = new Date(deliveryDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+            if (['จัดส่งสำเร็จ'].includes(activeOrder.status)) {
+                // Use delivery_date (when admin marked as delivered) as the starting point
+                const dateToUse = activeOrder.delivery_date || activeOrder.created_at;
+                if (dateToUse) {
+                    const deliveryDate = new Date(dateToUse);
+                    const daysToAdd = activeOrder.plan === 'monthly' ? 30 : 7;
+                    const expiryDate = new Date(deliveryDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
 
-                // Allow it to be negative so the UI can know it expired
-                const msRemaining = expiryDate.getTime() - now.getTime();
-                remainingDays = Math.ceil(msRemaining / (1000 * 60 * 60 * 24));
+                    // Allow it to be negative so the UI can know it expired
+                    const msRemaining = expiryDate.getTime() - now.getTime();
+                    remainingDays = Math.ceil(msRemaining / (1000 * 60 * 60 * 24));
+                }
             }
 
             // Check if there is a separate pre-order
@@ -90,7 +97,7 @@ export async function GET(request: Request) {
                 mealSetId: activeOrder.mealset_id,
                 plan: activeOrder.plan,
                 status: activeOrder.status,
-                deliveryDate: activeOrder.delivery_date,
+                deliveryDate: activeOrder.delivery_date || activeOrder.created_at,
                 orderDate: activeOrder.created_at,
                 boxSize: activeOrder.box_size || 'M',
                 sizeMultiplier: activeOrder.size_multiplier || 1.0,

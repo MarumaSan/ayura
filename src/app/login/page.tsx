@@ -10,6 +10,7 @@ export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
+    const [referralCode, setReferralCode] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -110,7 +111,7 @@ export default function LoginPage() {
                 const res = await fetch('/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, email, password })
+                    body: JSON.stringify({ name, email, password, referralCode })
                 });
 
                 const data = await res.json();
@@ -326,6 +327,30 @@ export default function LoginPage() {
                                         />
                                     </div>
                                 </div>
+
+                                {/* Referral Code Input - Only for registration */}
+                                {!isLogin && (
+                                    <div className="space-y-1.5 fade-in">
+                                        <label className="text-sm font-medium text-[var(--color-text)] ml-1">
+                                            รหัสอ้างอิงจากเพื่อน (ถ้ามี)
+                                        </label>
+                                        <div className="relative">
+                                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                                <span className="text-gray-400">🎁</span>
+                                            </div>
+                                            <input
+                                                type="text"
+                                                placeholder="AYURA..."
+                                                value={referralCode}
+                                                onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                                                className="w-full pl-11 pr-4 py-3 bg-[var(--color-bg-section)] border border-[var(--color-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)] transition-all font-mono uppercase"
+                                            />
+                                        </div>
+                                        <p className="text-xs text-[var(--color-text-light)] ml-1">
+                                            ใส่รหัสอ้างอิงเพื่อรับโบนัส 50 พอยท์ (ถ้ามี)
+                                        </p>
+                                    </div>
+                                )}
 
                                 {isLogin && (
                                     <div className="flex justify-end">

@@ -96,15 +96,17 @@ async function getAdminOrdersHandler(request: NextRequest) {
                 totalPrice: o.total_price,
                 deliveryDate: o.delivery_date,
                 targetDeliveryDate: o.target_delivery_date,
+                coupon_code: o.coupon_code,
+                discount_amount: o.discount_amount,
                 createdAt: o.created_at,
                 updatedAt: o.updated_at,
+                notes: o.notes,
                 boxContents,
             };
         });
 
         return NextResponse.json({ success: true, data: enriched });
     } catch (error: any) {
-        console.error('Failed to fetch admin orders', error);
         return NextResponse.json(
             { error: 'Failed to fetch orders', details: error.message },
             { status: 500 }

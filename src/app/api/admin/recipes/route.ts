@@ -112,7 +112,6 @@ export async function POST(req: Request) {
                 .insert(rxPayload);
 
             if (rxError) {
-                console.error("Error inserting recipe_ingredients:", rxError);
                 return NextResponse.json({ success: false, error: 'Recipe created but ingredients failed: ' + rxError.message }, { status: 500 });
             }
         }

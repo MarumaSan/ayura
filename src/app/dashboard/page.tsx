@@ -112,7 +112,7 @@ export default function DashboardPage() {
                         setHasMealPlan(false);
                     }
                 } catch (err) {
-                    console.error('Failed to fetch profile', err);
+                    // Silently handle profile fetch error
                     // Use localStorage data as fallback instead of hardcoded values
                     const sessionData = JSON.parse(stored || '{}');
                     setProfile({
@@ -140,7 +140,7 @@ export default function DashboardPage() {
                     setIngredientsMap(map);
                 }
             } catch (err) {
-                console.error('Failed to fetch ingredients', err);
+                // Silently handle ingredients fetch error
             }
         };
 

@@ -33,7 +33,6 @@ export async function verifyAdmin(request: NextRequest): Promise<{ isAdmin: bool
 
         return { isAdmin: true, userId: user.id };
     } catch (error) {
-        console.error('Admin verification error:', error);
         return { isAdmin: false, error: 'Authentication failed' };
     }
 }

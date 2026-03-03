@@ -64,7 +64,6 @@ export async function POST(request: Request) {
             targets,
         });
     } catch (error: any) {
-        console.error('Recommendation API error:', error);
         return NextResponse.json(
             { error: 'Failed to compute recommendations', details: error.message },
             { status: 500 }

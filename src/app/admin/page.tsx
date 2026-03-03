@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { getAdminAuthToken, createAuthHeaders } from '@/lib/authHelpers';
 
 export default function AdminPage() {
     const [orders, setOrders] = useState<any[]>([]);
@@ -12,24 +13,34 @@ export default function AdminPage() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [ordersRes, topupsRes, usersRes] = await Promise.all([
-                    fetch('/api/admin/orders'),
-                    fetch('/api/admin/topup'),
-                    fetch('/api/admin/users'),
-                ]);
+                // Get admin authentication token
+                const token = getAdminAuthToken();
+                const headers = createAuthHeaders(token);
+
+                // Fetch data sequentially to avoid stream conflicts
+                const ordersRes = await fetch('/api/admin/orders', { headers });
+                const topupsRes = await fetch('/api/admin/topup', { headers });
+                const usersRes = await fetch('/api/admin/users-simple', { headers });
+                
+                // Parse responses
                 const ordersJson = await ordersRes.json();
                 const topupsJson = await topupsRes.json();
+                const usersJson = await usersRes.json();
 
-                if (ordersJson.success) setOrders(ordersJson.data);
-                if (topupsJson.success) setTopups(topupsJson.data);
-
-                // Users endpoint may not exist yet — handle gracefully
-                if (usersRes.ok) {
-                    const usersJson = await usersRes.json();
-                    if (usersJson.success) setUsers(usersJson.data);
+                // Set data
+                if (ordersJson.success) {
+                    setOrders(ordersJson.data);
+                }
+                
+                if (topupsJson.success) {
+                    setTopups(topupsJson.data);
+                }
+                
+                if (usersJson.success) {
+                    setUsers(usersJson.data);
                 }
             } catch (err) {
-                console.error(err);
+                // Silent fail
             } finally {
                 setLoading(false);
             }
@@ -38,7 +49,7 @@ export default function AdminPage() {
     }, []);
 
     const totalOrders = orders.length;
-    const orderRevenue = orders.filter(o => o.status !== 'ยกเลิก').reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+    const orderRevenue = orders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
     const totalWalletBalance = users.reduce((sum, u) => sum + (u.balance || 0), 0);
     const totalRevenue = orderRevenue + totalWalletBalance;
     const pendingOrders = orders.filter(
@@ -107,7 +118,7 @@ export default function AdminPage() {
                                 ภาพรวมระบบ Ayura สำหรับผู้ดูแลและชุมชนผู้ผลิต
                             </p>
                         </div>
-                        <div className="flex gap-3">
+                        <div className="flex gap-3 flex-wrap">
                             <Link href="/admin/inventory" className="btn-outline !py-2 !px-4 text-sm">
                                 จัดการสต็อก 📋
                             </Link>
@@ -116,6 +127,9 @@ export default function AdminPage() {
                             </Link>
                             <Link href="/admin/mealsets" className="btn-outline !py-2 !px-4 text-sm">
                                 จัดการเซ็ต 🍱
+                            </Link>
+                            <Link href="/admin/rewards" className="btn-outline !py-2 !px-4 text-sm">
+                                จัดการรางวัล 🎁
                             </Link>
                             <Link href="/admin/orders" className="btn-primary !py-2 !px-4 text-sm">
                                 ดูออเดอร์ 📦
@@ -169,9 +183,10 @@ export default function AdminPage() {
                             ) : recentOrders.length === 0 ? (
                                 <div className="text-center py-4 text-sm text-[var(--color-text-muted)]">ยังไม่มีออเดอร์</div>
                             ) : recentOrders.map((order) => (
-                                <div
+                                <Link
+                                    href={`/admin/orders/${order.id || order._id}`}
                                     key={order.id || order._id}
-                                    className="flex items-center justify-between p-4 bg-[var(--color-bg)] rounded-xl hover:bg-[var(--color-bg-section)] transition-colors"
+                                    className="flex items-center justify-between p-4 bg-[var(--color-bg)] rounded-xl hover:bg-[var(--color-bg-section)] transition-colors cursor-pointer"
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center text-white text-sm font-bold">
@@ -190,7 +205,7 @@ export default function AdminPage() {
                                             {order.status}
                                         </span>
                                     </div>
-                                </div>
+                                </Link>
                             ))}
                         </div>
                     </div>
@@ -207,7 +222,11 @@ export default function AdminPage() {
                                 ) : topups.length === 0 ? (
                                     <div className="text-center py-4 text-sm text-[var(--color-text-muted)]">ยังไม่มีรายการเติมเงิน</div>
                                 ) : topups.slice(0, 5).map((t) => (
-                                    <div key={t._id} className="flex items-center justify-between p-3 bg-[var(--color-bg)] rounded-xl">
+                                    <Link 
+                                        href={`/admin/topups/${t._id}`}
+                                        key={t._id} 
+                                        className="flex items-center justify-between p-3 bg-[var(--color-bg)] rounded-xl hover:bg-[var(--color-bg-section)] transition-colors cursor-pointer"
+                                    >
                                         <div>
                                             <div className="text-sm font-medium">{t.userName || t.userId}</div>
                                             <div className="text-xs text-[var(--color-text-muted)]">
@@ -220,7 +239,7 @@ export default function AdminPage() {
                                                 {t.status === 'approved' ? '✅' : t.status === 'rejected' ? '❌' : '⏳'}
                                             </span>
                                         </div>
-                                    </div>
+                                    </Link>
                                 ))}
                             </div>
                         </div>

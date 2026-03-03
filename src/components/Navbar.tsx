@@ -28,6 +28,11 @@ export default function Navbar() {
     const [showQR, setShowQR] = useState(false);
     const [userId, setUserId] = useState<string>('');
     const [showTopupPendingPopup, setShowTopupPendingPopup] = useState(false);
+    const [showFriendModal, setShowFriendModal] = useState(false);
+    const [referralCode, setReferralCode] = useState('');
+    const [isCopying, setIsCopying] = useState(false);
+    const [copyMessage, setCopyMessage] = useState<string | null>(null);
+    const [referralStats, setReferralStats] = useState({ totalPoints: 0, pendingCount: 0, rewardedCount: 0 });
 
     const checkLoginStatus = async () => {
         const profile = localStorage.getItem('ayuraProfile');
@@ -43,11 +48,23 @@ export default function Navbar() {
                 if (res.ok) {
                     const result = await res.json();
                     setBalance(result.profile.balance || 0);
+                    setReferralCode(result.profile.referralCode || '');
                     setUserRole(result.profile.role || 'user');
                     // update local storage
                     data.balance = result.profile.balance || 0;
                     data.role = result.profile.role || 'user';
                     localStorage.setItem('ayuraProfile', JSON.stringify(data));
+                }
+                
+                // Fetch referral stats
+                const refRes = await fetch(`/api/user/referrals?email=${data.email}`);
+                if (refRes.ok) {
+                    const refData = await refRes.json();
+                    setReferralStats({
+                        totalPoints: refData.totalPoints || 0,
+                        pendingCount: refData.pendingCount || 0,
+                        rewardedCount: refData.rewardedCount || 0
+                    });
                 }
             } catch (err) {
                 setBalance(data.balance || 0);
@@ -121,9 +138,26 @@ export default function Navbar() {
                 setShowTopupPendingPopup(true);
             }
         } catch (err) {
-            console.error(err);
+            // Silently handle topup error
         } finally {
             setIsToppingUp(false);
+        }
+    };
+
+    const handleCopyReferralCode = async () => {
+        if (!referralCode) return;
+        
+        setIsCopying(true);
+        setCopyMessage(null);
+        
+        try {
+            await navigator.clipboard.writeText(referralCode);
+            setCopyMessage('คัดลอกรหัสอ้างอิงแล้ว!');
+        } catch (err) {
+            setCopyMessage('ไม่สามารถคัดลอกได้');
+        } finally {
+            setIsCopying(false);
+            setTimeout(() => setCopyMessage(null), 2000);
         }
     };
 
@@ -216,6 +250,31 @@ export default function Navbar() {
                                                         </div>
                                                     </div>
                                                     <div className="py-2">
+                                                        <div className="px-4 py-1.5 flex items-center gap-2">
+                                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">ชวนเพื่อน</span>
+                                                            {referralStats.rewardedCount > 0 && (
+                                                                <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                                                                    +{referralStats.totalPoints} แต้ม
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <button
+                                                            onClick={() => {
+                                                                setIsDropdownOpen(false);
+                                                                setShowFriendModal(true);
+                                                            }}
+                                                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-[var(--color-primary)] transition-all w-full text-left"
+                                                        >
+                                                            <span className="text-lg">👤</span>
+                                                            <span>แนะนำเพื่อน</span>
+                                                            {referralStats.pendingCount > 0 && (
+                                                                <span className="ml-auto text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
+                                                                    รอ {referralStats.pendingCount}
+                                                                </span>
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                    <div className="border-t border-gray-100 py-2">
                                                         <div className="px-4 py-1.5 flex items-center gap-2">
                                                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">ข้อมูลสุขภาพ</span>
                                                         </div>
@@ -337,6 +396,32 @@ export default function Navbar() {
                                         <span className="text-lg">🌟</span>
                                         <span>แต้มสะสม</span>
                                     </Link>
+                                </div>
+
+                                <div className="pt-2">
+                                    <div className="px-4 py-1.5 flex items-center gap-2">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">ชวนเพื่อน</span>
+                                        {referralStats.rewardedCount > 0 && (
+                                            <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                                                +{referralStats.totalPoints} แต้ม
+                                            </span>
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={() => { 
+                                            setIsOpen(false); 
+                                            setShowFriendModal(true); 
+                                        }}
+                                        className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-gray-700 bg-white/50 hover:bg-[var(--color-primary)]/10 transition-colors border border-gray-100"
+                                    >
+                                        <span className="text-lg">🎁</span>
+                                        <span>ชวนเพื่อน</span>
+                                        {referralStats.rewardedCount > 0 && (
+                                            <span className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                                                +{referralStats.totalPoints} แต้ม
+                                            </span>
+                                        )}
+                                    </button>
                                 </div>
 
                                 <div className="pt-2">
@@ -465,6 +550,111 @@ export default function Navbar() {
                     </div>
                 )
             }
+
+            {/* Friend Referral Modal */}
+            {showFriendModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xl font-bold text-[var(--color-primary-dark)]">ชวนเพื่อน 🎁</h2>
+                            <button
+                                onClick={() => {
+                                    setShowFriendModal(false);
+                                }}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        
+                        <div className="mb-4 bg-green-50 p-4 rounded-xl">
+                            <p className="text-sm text-green-800">
+                                <strong>รับ 50 แต้ม</strong> เมื่อเพื่อนของคุณสมัครและใช้รหัสอ้างอิง!
+                            </p>
+                            <p className="text-xs text-green-600 mt-1">
+                                เพื่อนใหม่จะได้รับ 50 แต้ม Welcome Bonus ด้วย
+                            </p>
+                        </div>
+
+                        {referralStats.rewardedCount > 0 && (
+                            <div className="mb-4 flex items-center gap-4 text-sm">
+                                <div className="bg-[var(--color-primary)]/10 px-3 py-2 rounded-lg">
+                                    <span className="text-[var(--color-primary)] font-bold">{referralStats.rewardedCount}</span>
+                                    <span className="text-gray-600 ml-1">เพื่อนที่ชวนสำเร็จ</span>
+                                </div>
+                                <div className="bg-green-100 px-3 py-2 rounded-lg">
+                                    <span className="text-green-700 font-bold">+{referralStats.totalPoints}</span>
+                                    <span className="text-gray-600 ml-1">แต้มรวม</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {copyMessage ? (
+                            <div className={`p-4 rounded-xl mb-4 ${copyMessage.includes('สำเร็จ') ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+                                <p className="text-sm font-medium">{copyMessage}</p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium mb-2 text-gray-700">
+                                        รหัสอ้างอิงของคุณ
+                                    </label>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="text"
+                                            value={referralCode}
+                                            readOnly
+                                            className="flex-1 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 font-mono font-bold text-[var(--color-primary)] text-center"
+                                        />
+                                        <button
+                                            onClick={handleCopyReferralCode}
+                                            disabled={isCopying}
+                                            className="px-4 py-3 bg-[var(--color-primary)] text-white rounded-xl hover:bg-[var(--color-primary-dark)] transition-colors disabled:opacity-50"
+                                        >
+                                            {isCopying ? 'กำลัง...' : '📋 คัดลอก'}
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        แชร์รหัสนี้ให้เพื่อนเพื่อรับโบนัสพิเศษ
+                                    </p>
+                                </div>
+                                
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium mb-2 text-gray-700">
+                                        ข้อความแชร์ (คัดลอกได้เลย)
+                                    </label>
+                                    <textarea
+                                        value={`เข้ามาสมัคร Ayura กับผม! ใช้รหัส ${referralCode} รับโบนัส 50 พอยท์ฟรี 🎁`}
+                                        readOnly
+                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm resize-none"
+                                        rows={3}
+                                    />
+                                </div>
+
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => setShowFriendModal(false)}
+                                        className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+                                        disabled={isCopying}
+                                    >
+                                        ปิด
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(`เข้ามาสมัคร Ayura กับผม! ใช้รหัส ${referralCode} รับโบนัส 50 พอยท์ฟรี 🎁`);
+                                            setCopyMessage('คัดลอกข้อความแชร์แล้ว!');
+                                            setTimeout(() => setCopyMessage(null), 2000);
+                                        }}
+                                        className="flex-1 py-3 px-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors"
+                                    >
+                                        📱 คัดลอกข้อความ
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
         </>
     );
 }

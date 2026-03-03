@@ -63,7 +63,6 @@ async function loginHandler(request: NextRequest) {
                 );
             }
         } catch (err) {
-            console.error('Password comparison error:', err);
             return NextResponse.json(
                 { error: 'Authentication failed' },
                 { status: 401 }

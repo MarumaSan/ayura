@@ -70,6 +70,8 @@ export async function GET() {
             description: ms.description,
             isActive: ms.is_active,
             avgNutrition: ms.avg_nutrition,
+            priceWeekly: ms.price_weekly,
+            priceMonthly: ms.price_monthly,
             boxIngredients: boxItemsMap[ms.id] || []
         }));
 
@@ -98,8 +100,15 @@ export async function POST(req: Request) {
             name: body.name,
             description: body.description || '',
             image: body.image || '',
+            price_weekly: Number(body.priceWeekly) || 0,
+            price_monthly: Number(body.priceMonthly) || 0,
             is_active: body.isActive !== undefined ? body.isActive : true,
-            avg_nutrition: avgNutrition,
+            avg_nutrition: {
+                calories: avgNutrition.calories || 0,
+                protein: avgNutrition.protein || 0,
+                carbs: avgNutrition.carbs || 0,
+                fat: avgNutrition.fat || 0
+            },
         };
 
         const { data: newMealset, error: insertError } = await supabaseAdmin
@@ -126,7 +135,7 @@ export async function POST(req: Request) {
                 .insert(boxIngredientsPayload);
 
             if (boxError) {
-                console.error("Failed to insert box ingredients:", boxError);
+                // Silently continue even if box ingredients fail
             }
         }
 
@@ -135,6 +144,8 @@ export async function POST(req: Request) {
             _id: newMealset.id,
             isActive: newMealset.is_active,
             avgNutrition: newMealset.avg_nutrition,
+            priceWeekly: newMealset.price_weekly,
+            priceMonthly: newMealset.price_monthly,
             boxIngredients: body.boxIngredients || []
         };
 
@@ -143,7 +154,7 @@ export async function POST(req: Request) {
         if (error.code === '23505') { // Postgres unique violation code
             return NextResponse.json({ success: false, error: 'ID นี้มีอยู่แล้ว' }, { status: 409 });
         }
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: error.message || 'Unknown error' }, { status: 500 });
     }
 }
 

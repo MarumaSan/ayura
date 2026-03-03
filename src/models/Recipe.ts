@@ -1,6 +1,6 @@
 export interface RecipeIngredientRow {
-    id?: string;
-    recipe_id: string;
+    id?: number;
+    recipe_id: number;
     ingredient_id: string;
     grams_used: number;
     note?: string;
@@ -8,7 +8,7 @@ export interface RecipeIngredientRow {
 }
 
 export interface RecipeRow {
-    id: string; // 'rcp-xxx'
+    id: number; // BIGSERIAL
     name: string;
     image: string;
     meal_type: 'เช้า' | 'กลางวัน' | 'เย็น' | 'ว่าง';

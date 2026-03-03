@@ -110,7 +110,6 @@ export async function GET(request: Request) {
             date: todayStr,
         });
     } catch (error: any) {
-        console.error('Daily menu error:', error);
         return NextResponse.json(
             { error: 'Failed to generate daily menu', details: error.message },
             { status: 500 }

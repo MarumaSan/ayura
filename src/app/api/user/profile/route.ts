@@ -13,9 +13,10 @@ function validateUserId(userId: string): boolean {
 }
 
 function validatePhone(phone: string): boolean {
+    // Must be exactly 10 digits, numeric only
     if (!phone) return true; // Phone is optional
-    const phoneRegex = /^[0-9\-]{9,15}$/;
-    return phoneRegex.test(phone.replace(/\s/g, ''));
+    const phoneRegex = /^[0-9]{10}$/;
+    return phoneRegex.test(phone);
 }
 
 function validateNumber(value: any, min: number, max: number): boolean {
@@ -34,7 +35,7 @@ export async function GET(request: Request) {
 
         const { data: user, error } = await supabaseAdmin
             .from('users')
-            .select('id, name, email, phone, age, gender, weight, height, activity_level, bio, health_goal, points, streak, balance, is_profile_complete, role')
+            .select('id, name, email, phone, age, gender, weight, height, activity_level, bio, health_goal, points, streak, balance, is_profile_complete, role, referral_code, referred_by_code')
             .eq('id', parseInt(userId, 10))
             .single();
 
@@ -62,7 +63,9 @@ export async function GET(request: Request) {
                 streak: user.streak,
                 balance: user.balance || 0,
                 isProfileComplete: isComplete,
-                role: user.role || 'user'
+                role: user.role || 'user',
+                referralCode: user.referral_code || '',
+                referredByCode: user.referred_by_code || ''
             }
         });
 
@@ -134,11 +137,10 @@ export async function PUT(request: Request) {
                 is_profile_complete: true
             })
             .eq('id', parseInt(userId, 10))
-            .select('id, name, email, phone, age, gender, weight, height, activity_level, bio, health_goal, points, streak, balance, is_profile_complete, role')
+            .select('id, name, email, phone, age, gender, weight, height, activity_level, bio, health_goal, points, streak, balance, is_profile_complete, role, referral_code, referred_by_code')
             .single();
 
         if (error || !updatedUser) {
-            console.error('Update Profile Error:', error);
             return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 });
         }
 
@@ -160,7 +162,9 @@ export async function PUT(request: Request) {
                 streak: updatedUser.streak,
                 balance: updatedUser.balance || 0,
                 isProfileComplete: updatedUser.is_profile_complete,
-                role: updatedUser.role || 'user'
+                role: updatedUser.role || 'user',
+                referralCode: updatedUser.referral_code || '',
+                referredByCode: updatedUser.referred_by_code || ''
             }
         });
 

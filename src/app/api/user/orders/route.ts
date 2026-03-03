@@ -13,14 +13,16 @@ function sanitizeString(input: string, maxLength: number = 500): string {
 }
 
 function validatePhone(phone: string): boolean {
-    const phoneRegex = /^[0-9\-]{9,15}$/;
-    return phoneRegex.test(phone.replace(/\s/g, ''));
+    // Must be exactly 10 digits, numeric only
+    const phoneRegex = /^[0-9]{10}$/;
+    return phoneRegex.test(phone);
 }
 
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { userId, customerName, mealSetId, mealSetName, plan, boxSize, sizeMultiplier, address, phone, totalPrice, paymentMethod } = body;
+        
+        const { userId, customerName, mealSetId, mealSetName, plan, boxSize, sizeMultiplier, address, phone, totalPrice, originalPrice, discountAmount, couponCode, paymentMethod } = body;
 
         if (!userId || !mealSetId || !plan || !address || !customerName || !paymentMethod) {
             return NextResponse.json({ error: 'Missing required order fields' }, { status: 400 });
@@ -47,7 +49,7 @@ export async function POST(request: Request) {
         const sanitizedCustomerName = sanitizeString(customerName, 100);
 
         if (sanitizedPhone && !validatePhone(sanitizedPhone)) {
-            return NextResponse.json({ error: 'Invalid phone number format' }, { status: 400 });
+            return NextResponse.json({ error: 'Phone number must be exactly 10 digits' }, { status: 400 });
         }
 
         // 1. Resolve mealSet
@@ -100,14 +102,10 @@ export async function POST(request: Request) {
         // 3. Handle Wallet Payment - Use atomic function
         if (paymentMethod === 'WALLET') {
             const userIdInt = parseInt(userId, 10);
-            console.log(`Wallet deduction: userId=${userIdInt}, amount=${totalPrice}`);
-            
-            const { data: success, error: deductError } = await supabaseAdmin.rpc('deduct_wallet_balance', {
+        const { data: success, error: deductError } = await supabaseAdmin.rpc('deduct_wallet_balance', {
                 p_user_id: userIdInt,
                 p_amount: totalPrice
             });
-
-            console.log(`Wallet result: success=${success}, error=${deductError?.message}`);
 
             if (deductError || !success) {
                 return NextResponse.json({ 
@@ -134,18 +132,27 @@ export async function POST(request: Request) {
             .order('created_at', { ascending: false });
 
         const now = getThaiDate();
-        if (activeOrdersList) {
+        if (activeOrdersList && activeOrdersList.length > 0) {
+            // Find the most recent completed order with a delivery date
             for (const order of activeOrdersList) {
-                if (order.delivery_date) {
-                    const dDate = new Date(order.delivery_date);
-                    const days = order.plan === 'monthly' ? 30 : 7;
-                    const expiryD = new Date(dDate.getTime() + days * 24 * 60 * 60 * 1000);
-                    if (expiryD > now) {
-                        targetDeliveryDate = expiryD.toISOString();
-                        break;
-                    }
+                const dateToUse = order.delivery_date || order.target_delivery_date || order.created_at;
+                if (!dateToUse) continue;
+                
+                const dDate = new Date(dateToUse);
+                const days = order.plan === 'monthly' ? 30 : 7;
+                const expiryD = new Date(dDate.getTime() + days * 24 * 60 * 60 * 1000);
+                
+                if (expiryD > now) {
+                    // This order's period is still active, next delivery starts after it expires
+                    targetDeliveryDate = expiryD.toISOString();
+                    break;
                 }
             }
+        }
+        
+        // If no active completed order found, use current time as target delivery
+        if (!targetDeliveryDate) {
+            targetDeliveryDate = now.toISOString();
         }
 
         // 5. Create Order
@@ -165,7 +172,10 @@ export async function POST(request: Request) {
                 address: sanitizedAddress,
                 phone: sanitizedPhone,
                 total_price: totalPrice || 0,
-                target_delivery_date: targetDeliveryDate
+                target_delivery_date: targetDeliveryDate,
+                // Coupon info
+                coupon_code: couponCode || null,
+                discount_amount: discountAmount || 0,
             })
             .select()
             .single();
@@ -189,28 +199,40 @@ export async function POST(request: Request) {
             });
 
             if (deductError || !deductSuccess) {
-                console.error(`Failed to deduct stock for ingredient ${update.id}`);
-                // Log for manual intervention - don't fail the order
+                // Silently log for manual intervention - don't fail the order
             }
         }
 
         // 7. Calculate and add points based on plan type
         const pointsToAdd = plan === 'monthly' ? 500 : 100;
-        const { data: currentUserObj } = await supabaseAdmin.from('users').select('points').eq('id', parseInt(userId, 10)).single();
+        
+        const { data: currentUserObj, error: userError } = await supabaseAdmin.from('users').select('points').eq('id', parseInt(userId, 10)).single();
+        
+        if (userError) {
+            // Silent fail for points update
+        }
+        
         if (currentUserObj) {
-            await supabaseAdmin
+            const newPoints = (currentUserObj.points || 0) + pointsToAdd;
+            
+            const { error: updateError } = await supabaseAdmin
                 .from('users')
                 .update({
-                    points: (currentUserObj.points || 0) + pointsToAdd,
+                    points: newPoints,
                     is_profile_complete: true
                 })
                 .eq('id', parseInt(userId, 10));
+                
+            if (updateError) {
+                // Silent fail for points update
+            }
+        } else {
+            // Silent fail for points update
         }
 
         return NextResponse.json({ success: true, orderId: newOrder.id });
 
     } catch (error: any) {
-        console.error('Order creation error:', error);
         return NextResponse.json(
             { error: 'Failed to create order', details: error.message },
             { status: 500 }

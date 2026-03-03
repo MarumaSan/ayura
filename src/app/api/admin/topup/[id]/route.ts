@@ -71,7 +71,6 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
             return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
         }
     } catch (error: any) {
-        console.error('Topup approve/reject error:', error);
         return NextResponse.json({ error: 'Failed to process', details: error.message }, { status: 500 });
     }
 }

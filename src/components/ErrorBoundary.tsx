@@ -21,7 +21,6 @@ export default class ErrorBoundary extends Component<Props, State> {
     }
 
     public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-        console.error('Uncaught error:', error, errorInfo);
         // In production, you might want to log to an error tracking service
     }
 

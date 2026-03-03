@@ -14,6 +14,8 @@ export interface OrderRow {
     phone?: string;
     delivery_date?: string;
     target_delivery_date?: string;
+    coupon_code?: string;
+    discount_amount?: number;
     created_at: string;
     updated_at: string;
 }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { getAdminAuthToken, createAuthHeaders } from '@/lib/authHelpers';
 
 const statusFilters = ['ทั้งหมด', 'รอยืนยันการชำระเงิน', 'รออนุมัติ', 'รอจัดส่ง', 'กำลังขนส่ง', 'จัดส่งสำเร็จ'];
 
@@ -18,20 +19,34 @@ export default function OrdersPage() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [ordersRes, topupsRes, usersRes] = await Promise.all([
-                    fetch('/api/admin/orders'),
-                    fetch('/api/admin/topup'),
-                    fetch('/api/admin/users'),
-                ]);
+                // Get admin authentication token
+                const token = getAdminAuthToken();
+                const headers = createAuthHeaders(token);
+
+                // Fetch data sequentially to avoid stream conflicts
+                const ordersRes = await fetch('/api/admin/orders', { headers });
+                const topupsRes = await fetch('/api/admin/topup', { headers });
+                const usersRes = await fetch('/api/admin/users-simple', { headers });
+                
+                // Parse responses
                 const ordersJson = await ordersRes.json();
                 const topupsJson = await topupsRes.json();
                 const usersJson = await usersRes.json();
 
-                if (ordersJson.success) setOrders(ordersJson.data);
-                if (topupsJson.success) setTopupRequests(topupsJson.data);
-                if (usersJson.success) setUsers(usersJson.data);
+                // Set data
+                if (ordersJson.success) {
+                    setOrders(ordersJson.data);
+                }
+                
+                if (topupsJson.success) {
+                    setTopupRequests(topupsJson.data);
+                }
+                
+                if (usersJson.success) {
+                    setUsers(usersJson.data);
+                }
             } catch (err) {
-                console.error(err);
+                // Silent fail
             } finally {
                 setLoading(false);
             }
@@ -40,32 +55,32 @@ export default function OrdersPage() {
     }, []);
 
     const updateOrderStatus = async (orderId: string, newStatus: string) => {
-        try {
-            const res = await fetch(`/api/admin/orders/${orderId}/status`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: newStatus })
-            });
-            if (res.ok) {
-                setOrders(orders.map(o => o.id === orderId || o._id === orderId ? { ...o, status: newStatus } : o));
-            }
-        } catch (err) {
-            console.error('Failed to update status', err);
+        // Get admin authentication token
+        const token = getAdminAuthToken();
+        const headers = createAuthHeaders(token);
+
+        const res = await fetch(`/api/admin/orders/${orderId}/status`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify({ status: newStatus })
+        });
+        if (res.ok) {
+            setOrders(orders.map(o => o.id === orderId || o._id === orderId ? { ...o, status: newStatus } : o));
         }
     };
 
     const processTopup = async (topupId: string, action: 'approve' | 'reject') => {
-        try {
-            const res = await fetch(`/api/admin/topup/${topupId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action })
-            });
-            if (res.ok) {
-                setTopupRequests(topupRequests.map(t => t._id === topupId ? { ...t, status: action === 'approve' ? 'approved' : 'rejected' } : t));
-            }
-        } catch (err) {
-            console.error('Failed to process topup', err);
+        // Get admin authentication token
+        const token = getAdminAuthToken();
+        const headers = createAuthHeaders(token);
+
+        const res = await fetch(`/api/admin/topup/${topupId}`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify({ action })
+        });
+        if (res.ok) {
+            setTopupRequests(topupRequests.map(t => t._id === topupId ? { ...t, status: action === 'approve' ? 'approved' : 'rejected' } : t));
         }
     };
 
@@ -76,8 +91,7 @@ export default function OrdersPage() {
 
     // Revenue calculations
     const orderRevenue = orders
-        .filter(o => o.status !== 'ยกเลิก')
-        .reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+        .reduce((sum, o) => sum + (o.totalPrice || 0), 0); // รวมทุกออเดอร์รวมทั้งยกเลิก
     const totalWalletBalance = users.reduce((sum, u) => sum + (u.balance || 0), 0);
     const totalRevenue = orderRevenue + totalWalletBalance;
 
@@ -261,6 +275,11 @@ export default function OrdersPage() {
                                                         <span className="text-[10px] text-gray-400 px-2 py-0.5 bg-gray-50 border border-gray-100 rounded-full">
                                                             {order.paymentMethod === 'PROMPTPAY' ? '📱 PromptPay' : '💰 Wallet'}
                                                         </span>
+                                                        {order.coupon_code && (
+                                                            <span className="text-[10px] px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full">
+                                                                🏷️ {order.coupon_code} (-฿{order.discount_amount?.toLocaleString()})
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <div className="text-sm font-bold truncate text-gray-700">{order.customerName}</div>
                                                     <div className="text-[10px] text-gray-400 mt-1 flex items-center gap-3">
@@ -277,54 +296,75 @@ export default function OrdersPage() {
                                                     <div className="text-[10px] font-medium text-gray-500">
                                                         📅 วันที่สั่งซื้อ: {new Date(order.createdAt).toLocaleDateString('th-TH')}
                                                     </div>
+                                                    {order.targetDeliveryDate && (
+                                                        <div className="text-[10px] font-medium text-orange-600">
+                                                            📦 ให้ส่งภายใน: {new Date(order.targetDeliveryDate).toLocaleDateString('th-TH')}
+                                                        </div>
+                                                    )}
                                                     <div className="text-[9px] text-gray-400 leading-none">
                                                         {planLabel(order.plan)}
                                                     </div>
-                                                    {order.targetDeliveryDate && !['จัดส่งสำเร็จ', 'ยกเลิก'].includes(order.status) && (
-                                                        <div className="mt-1 px-2 py-0.5 bg-red-50 text-red-600 rounded text-[10px] font-bold border border-red-200 shadow-sm animate-pulse-slow">
-                                                            ⚠️ สั่งล่วงหน้า: ส่งภายใน {new Date(order.targetDeliveryDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}
+                                                    {order.coupon_code && !['จัดส่งสำเร็จ', 'ยกเลิก'].includes(order.status) && (
+                                                        <div className="mt-1 px-2 py-0.5 bg-purple-50 text-purple-600 rounded text-[10px] font-bold border border-purple-200">
+                                                            🏷️ ใช้คูปอง: {order.coupon_code}
                                                         </div>
                                                     )}
                                                 </div>
 
                                                 {/* Right: Action Section (No background container) */}
-                                                <div
+                                                <div 
+                                                    className="min-w-[120px] flex items-center justify-end relative"
                                                     onClick={(e) => e.stopPropagation()}
-                                                    className="min-w-[120px] flex items-center justify-end"
                                                 >
-                                                    {order.status === 'รอยืนยันการชำระเงิน' && (
+                                                    {order.status?.trim() === 'รอยืนยันการชำระเงิน' && (
                                                         <button
-                                                            onClick={() => updateOrderStatus(order.id || order._id, 'รออนุมัติ')}
-                                                            className="text-xs font-bold py-2.5 px-4 rounded-xl bg-orange-50 text-orange-600 border border-orange-100 hover:bg-orange-100 transition-all flex items-center gap-1"
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                updateOrderStatus(order.id || order._id, 'รออนุมัติ');
+                                                            }}
+                                                            className="text-xs font-bold py-2.5 px-4 rounded-xl bg-orange-50 text-orange-600 border border-orange-100 hover:bg-orange-100 transition-all flex items-center gap-1 cursor-pointer"
                                                         >
                                                             <span>✅</span> ยืนยันรับเงิน
                                                         </button>
                                                     )}
-                                                    {order.status === 'รออนุมัติ' && (
+                                                    {order.status?.trim() === 'รออนุมัติ' && (
                                                         <button
-                                                            onClick={() => updateOrderStatus(order.id || order._id, 'รอจัดส่ง')}
-                                                            className="text-xs font-bold py-2.5 px-4 rounded-xl bg-green-50 text-green-600 border border-green-100 hover:bg-green-100 transition-all flex items-center gap-1"
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                updateOrderStatus(order.id || order._id, 'รอจัดส่ง');
+                                                            }}
+                                                            className="text-xs font-bold py-2.5 px-4 rounded-xl bg-green-50 text-green-600 border border-green-100 hover:bg-green-100 transition-all flex items-center gap-1 cursor-pointer"
                                                         >
                                                             <span>✅</span> อนุมัติออเดอร์
                                                         </button>
                                                     )}
-                                                    {order.status === 'รอจัดส่ง' && (
+                                                    {order.status?.trim() === 'รอจัดส่ง' && (
                                                         <button
-                                                            onClick={() => updateOrderStatus(order.id || order._id, 'กำลังขนส่ง')}
-                                                            className="text-xs font-bold py-2.5 px-4 rounded-xl bg-yellow-50 text-yellow-700 border border-yellow-100 hover:bg-yellow-100 transition-all flex items-center gap-1"
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                updateOrderStatus(order.id || order._id, 'กำลังขนส่ง');
+                                                            }}
+                                                            className="text-xs font-bold py-2.5 px-4 rounded-xl bg-yellow-50 text-yellow-700 border border-yellow-100 hover:bg-yellow-100 transition-all flex items-center gap-1 cursor-pointer"
                                                         >
                                                             <span>🚛</span> จัดส่งสินค้า
                                                         </button>
                                                     )}
-                                                    {order.status === 'กำลังขนส่ง' && (
+                                                    {order.status?.trim() === 'กำลังขนส่ง' && (
                                                         <button
-                                                            onClick={() => updateOrderStatus(order.id || order._id, 'จัดส่งสำเร็จ')}
-                                                            className="text-xs font-bold py-2.5 px-4 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-all flex items-center gap-1"
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                updateOrderStatus(order.id || order._id, 'จัดส่งสำเร็จ');
+                                                            }}
+                                                            className="text-xs font-bold py-2.5 px-4 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-all flex items-center gap-1 cursor-pointer"
                                                         >
                                                             <span>🏁</span> ส่งสำเร็จ
                                                         </button>
                                                     )}
-                                                    {order.status === 'จัดส่งสำเร็จ' && (
+                                                    {order.status?.trim() === 'จัดส่งสำเร็จ' && (
                                                         <div className="px-4 py-2 rounded-xl bg-green-50 text-green-600 border border-green-100 text-[10px] font-bold flex items-center gap-1">
                                                             <span>✅</span> สำเร็จแล้ว
                                                         </div>
@@ -372,6 +412,14 @@ export default function OrdersPage() {
                                                                 <span className="text-[var(--color-text-light)]">💰 ราคา</span>
                                                                 <span className="font-bold text-[var(--color-primary)]">฿{order.totalPrice?.toLocaleString()}</span>
                                                             </div>
+                                                            {order.coupon_code && (
+                                                                <div className="flex justify-between">
+                                                                    <span className="text-[var(--color-text-light)]">🏷️ คูปองที่ใช้</span>
+                                                                    <span className="font-medium text-purple-600 text-right">
+                                                                        {order.coupon_code} (ลด ฿{order.discount_amount?.toLocaleString()})
+                                                                    </span>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
 

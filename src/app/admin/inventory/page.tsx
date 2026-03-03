@@ -55,7 +55,7 @@ export default function InventoryPage() {
                 setIngredients(data.data);
             }
         } catch (error) {
-            console.error('Failed to fetch ingredients', error);
+            // Silently handle ingredients fetch error
         } finally {
             setLoading(false);
         }
@@ -67,7 +67,7 @@ export default function InventoryPage() {
             const data = await res.json();
             if (data.success) setCommunities(data.data);
         } catch (error) {
-            console.error('Failed to fetch communities', error);
+            // Silently handle communities fetch error
         }
     };
 
@@ -113,7 +113,6 @@ export default function InventoryPage() {
                 alert(data.error || 'เกิดข้อผิดพลาดในการบันทึก');
             }
         } catch (error) {
-            console.error(error);
             alert('เกิดข้อผิดพลาด');
         }
     };
@@ -142,7 +141,6 @@ export default function InventoryPage() {
                 alert(data.error || 'เกิดข้อผิดพลาดในการบันทึกชุมชน');
             }
         } catch (error) {
-            console.error(error);
             alert('เกิดข้อผิดพลาด');
         }
     };
@@ -163,7 +161,6 @@ export default function InventoryPage() {
                 }
             }
         } catch (error) {
-            console.error(error);
             alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
         }
     };

@@ -131,7 +131,7 @@ export default function MealPlanPage() {
                     if (data.targets) setUserTargets(data.targets);
                 }
             } catch (e) {
-                console.error('Failed to fetch meal sets', e);
+                // Silently handle meal sets fetch error
             } finally {
                 setLoading(false);
             }
@@ -460,8 +460,20 @@ export default function MealPlanPage() {
                                                             <span className="font-bold text-[var(--color-primary)]">฿{set.priceWeekly.toLocaleString()}</span>
                                                         </div>
                                                         <div className="flex justify-between text-sm">
-                                                            <span className="text-[var(--color-text-muted)]">รายเดือน</span>
-                                                            <span className="font-bold text-[var(--color-primary)]">฿{set.priceMonthly.toLocaleString()}</span>
+                                                            <span className="text-[var(--color-text-muted)]">
+                                                                รายเดือน
+                                                                {(() => {
+                                                                    const weeklyTotal = set.priceWeekly * 4;
+                                                                    const discountPercent = Math.round(((weeklyTotal - set.priceMonthly) / weeklyTotal) * 100);
+                                                                    return discountPercent > 0 ? (
+                                                                        <span className="text-xs text-green-600 ml-1">(ลดแล้ว {discountPercent}%)</span>
+                                                                    ) : null;
+                                                                })()}
+                                                            </span>
+                                                            <div className="text-right">
+                                                                <span className="text-xs text-gray-400 line-through">฿{Math.round(set.priceWeekly * 4).toLocaleString()}</span>
+                                                                <span className="font-bold text-[var(--color-primary)] ml-1">฿{set.priceMonthly.toLocaleString()}</span>
+                                                            </div>
                                                         </div>
                                                         <div className="flex justify-between text-xs text-green-600">
                                                             <span>ประหยัดเดือนละ</span>
