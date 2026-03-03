@@ -16,6 +16,7 @@ export interface OrderRow {
     target_delivery_date?: string;
     coupon_code?: string;
     discount_amount?: number;
+    is_preorder?: boolean;
     created_at: string;
     updated_at: string;
 }

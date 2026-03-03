@@ -22,14 +22,21 @@ export async function GET(request: Request) {
         if (error) throw error;
         const validOrders = orders || [];
 
-        // Prioritize currently delivering active order over new pending pre-orders (Thai Time)
+        // Separate main orders and pre-orders
         const now = getThaiDate();
-        let activeOrder = null;
+        let activeMainOrder = null;
+        let activePreOrder = null;
         let mostRecentPendingOrder = null;
+        let expiredMainOrder = null;
 
         for (const order of validOrders) {
             if (['รอยืนยันการชำระเงิน', 'รออนุมัติ', 'รอจัดส่ง', 'กำลังขนส่ง'].includes(order.status)) {
-                if (!mostRecentPendingOrder) {
+                if (order.is_preorder) {
+                    // This is a pending pre-order
+                    if (!activePreOrder) {
+                        activePreOrder = order;
+                    }
+                } else if (!mostRecentPendingOrder) {
                     mostRecentPendingOrder = order;
                 }
             } else if (order.status === 'จัดส่งสำเร็จ') {
@@ -44,16 +51,46 @@ export async function GET(request: Request) {
                 const daysRemaining = Math.ceil(msRemaining / (1000 * 60 * 60 * 24));
 
                 if (daysRemaining > 0) {
-                    // We found an active delivered order. Prioritize this over pending pre-orders.
-                    activeOrder = order;
-                    break;
+                    // We found an active delivered order. Prioritize this over pre-orders.
+                    if (!activeMainOrder) {
+                        activeMainOrder = order;
+                        activeMainOrder.remainingDays = daysRemaining;
+                    }
+                } else {
+                    // This main order has expired - mark it for potential pre-order promotion
+                    if (!expiredMainOrder) {
+                        expiredMainOrder = order;
+                    }
                 }
             }
         }
 
-        // If no currently delivering active order, fallback to the most recent pending order (which could be a pre-order)
-        if (!activeOrder) {
+        // Logic: Determine which order to show as "active"
+        let activeOrder = null;
+        let isPreOrderActive = false;
+
+        if (activeMainOrder) {
+            // Case 1: We have an active main order - show it as primary
+            activeOrder = activeMainOrder;
+            isPreOrderActive = false;
+        } else if (expiredMainOrder && activePreOrder) {
+            // Case 2: Main order expired and we have a pre-order - promote pre-order to main
+            // In a real system, you might want to update the database to mark this as not a pre-order anymore
+            // But for now, we'll just display it as the active order
+            activeOrder = activePreOrder;
+            isPreOrderActive = true;
+            // Remove it from pre-order list since it's now "promoted"
+            activePreOrder = null;
+        } else if (activePreOrder) {
+            // Case 3: No main order but have pre-order (waiting for main to expire)
+            activeOrder = activePreOrder;
+            isPreOrderActive = true;
+            activePreOrder = null;
+        } else if (mostRecentPendingOrder) {
+            // Case 4: No active main or pre-order, but have pending regular order
             activeOrder = mostRecentPendingOrder;
+            isPreOrderActive = false;
+            mostRecentPendingOrder = null;
         }
 
         if (activeOrder) {
@@ -75,20 +112,29 @@ export async function GET(request: Request) {
                 }
             }
 
-            // Check if there is a separate pre-order
+            // Check if there is a separate pre-order (only if we're showing main order)
             let preOrderData = null;
-            if (mostRecentPendingOrder && activeOrder.id !== mostRecentPendingOrder.id) {
+            if (!isPreOrderActive && activePreOrder) {
                 preOrderData = {
-                    orderId: mostRecentPendingOrder.id,
-                    mealSetId: mostRecentPendingOrder.mealset_id,
-                    mealSetName: mostRecentPendingOrder.mealset_name,
-                    plan: mostRecentPendingOrder.plan,
-                    status: mostRecentPendingOrder.status,
-                    boxSize: mostRecentPendingOrder.box_size || 'M',
-                    totalPrice: mostRecentPendingOrder.total_price,
-                    targetDeliveryDate: mostRecentPendingOrder.target_delivery_date
+                    orderId: activePreOrder.id,
+                    mealSetId: activePreOrder.mealset_id,
+                    mealSetName: activePreOrder.mealset_name,
+                    plan: activePreOrder.plan,
+                    status: activePreOrder.status,
+                    boxSize: activePreOrder.box_size || 'M',
+                    totalPrice: activePreOrder.total_price,
+                    targetDeliveryDate: activePreOrder.target_delivery_date,
+                    isPreOrder: true
                 };
             }
+
+            // Check if user can create a pre-order
+            // Conditions:
+            // 1. Current order is not a pre-order itself (isPreOrderActive = false)
+            // 2. No pending pre-order exists (activePreOrder = null)
+            // 3. Current order status is 'จัดส่งสำเร็จ' (must be delivered to pre-order)
+            const canPreorder = !isPreOrderActive && !activePreOrder && 
+                activeOrder.status === 'จัดส่งสำเร็จ';
 
             return NextResponse.json({
                 hasMealPlan: true,
@@ -106,6 +152,8 @@ export async function GET(request: Request) {
                 address: activeOrder.address,
                 phone: activeOrder.phone,
                 remainingDays,
+                isPreOrder: isPreOrderActive,
+                canPreorder,
                 preOrder: preOrderData
             });
         } else {

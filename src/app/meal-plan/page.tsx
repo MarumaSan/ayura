@@ -67,6 +67,7 @@ export default function MealPlanPage() {
     const [checkingOrder, setCheckingOrder] = useState(true);
     const [cancelling, setCancelling] = useState(false);
     const [bypassGuard, setBypassGuard] = useState(false);
+    const [isPreOrder, setIsPreOrder] = useState(false);
 
     // BMI & TDEE derived state
     const userBmi = userProfile?.weight && userProfile?.height
@@ -188,6 +189,7 @@ export default function MealPlanPage() {
             boxSize,
             sizeMultiplier: multiplier,
             price: finalPrice,
+            isPreOrder: bypassGuard, // Flag for pre-order
         };
         localStorage.setItem('pendingOrder', JSON.stringify(orderData));
         router.push('/checkout');
@@ -297,10 +299,14 @@ export default function MealPlanPage() {
                                 </div>
                             )}
 
-                            {!activeOrder.preOrder && (
+                            {/* Pre-order button - show only when canPreorder is true */}
+                            {activeOrder.canPreorder && (
                                 <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8 mt-2">
                                     <button
-                                        onClick={() => setBypassGuard(true)}
+                                        onClick={() => {
+                                            setBypassGuard(true);
+                                            setIsPreOrder(true); // Set pre-order mode
+                                        }}
                                         className="px-6 py-3 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] text-white font-semibold shadow hover:shadow-md transition-all"
                                     >
                                         📅 สั่งจองแพ็กเกจถัดไปล่วงหน้า

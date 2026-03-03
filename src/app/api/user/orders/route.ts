@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
         
-        const { userId, customerName, mealSetId, mealSetName, plan, boxSize, sizeMultiplier, address, phone, totalPrice, originalPrice, discountAmount, couponCode, paymentMethod } = body;
+        const { userId, customerName, mealSetId, mealSetName, plan, boxSize, sizeMultiplier, address, phone, totalPrice, originalPrice, discountAmount, couponCode, paymentMethod, isPreOrder } = body;
 
         if (!userId || !mealSetId || !plan || !address || !customerName || !paymentMethod) {
             return NextResponse.json({ error: 'Missing required order fields' }, { status: 400 });
@@ -50,6 +50,62 @@ export async function POST(request: Request) {
 
         if (sanitizedPhone && !validatePhone(sanitizedPhone)) {
             return NextResponse.json({ error: 'Phone number must be exactly 10 digits' }, { status: 400 });
+        }
+
+        // Check pre-order conditions if isPreOrder is true
+        let isPreorderFlag = false;
+        let mainOrderDeliveryDate = null;
+        let mainOrderPlan = null;
+
+        if (isPreOrder === true) {
+            // Find the most recent completed order for this user
+            const { data: completedOrders } = await supabaseAdmin
+                .from('orders')
+                .select('*')
+                .eq('user_id', parseInt(userId, 10))
+                .eq('status', 'จัดส่งสำเร็จ')
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (!completedOrders || completedOrders.length === 0) {
+                return NextResponse.json({ 
+                    error: 'Cannot create pre-order: No completed order found. You must have a delivered box before pre-ordering.' 
+                }, { status: 400 });
+            }
+
+            const mainOrder = completedOrders[0];
+            const now = getThaiDate();
+            
+            // Check if main order is still active (not expired)
+            const dateToUse = mainOrder.delivery_date || mainOrder.target_delivery_date || mainOrder.created_at;
+            const deliveryDate = new Date(dateToUse);
+            const daysToAdd = mainOrder.plan === 'monthly' ? 30 : 7;
+            const expiryDate = new Date(deliveryDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+            
+            // Only allow pre-order if main order is still active
+            if (expiryDate <= now) {
+                return NextResponse.json({ 
+                    error: 'Cannot create pre-order: Your current box has already expired. Please order a new main box instead.' 
+                }, { status: 400 });
+            }
+
+            // Check if user already has a pending pre-order
+            const { data: existingPreorders } = await supabaseAdmin
+                .from('orders')
+                .select('*')
+                .eq('user_id', parseInt(userId, 10))
+                .eq('is_preorder', true)
+                .in('status', ['รอยืนยันการชำระเงิน', 'รออนุมัติ', 'รอจัดส่ง', 'กำลังขนส่ง']);
+
+            if (existingPreorders && existingPreorders.length > 0) {
+                return NextResponse.json({ 
+                    error: 'You already have a pending pre-order. Please wait for it to be processed or contact admin.' 
+                }, { status: 400 });
+            }
+
+            isPreorderFlag = true;
+            mainOrderDeliveryDate = mainOrder.delivery_date;
+            mainOrderPlan = mainOrder.plan;
         }
 
         // 1. Resolve mealSet
@@ -124,35 +180,44 @@ export async function POST(request: Request) {
 
         // 4. Target Delivery Date Logic
         let targetDeliveryDate = null;
-        const { data: activeOrdersList } = await supabaseAdmin
-            .from('orders')
-            .select('*')
-            .eq('user_id', parseInt(userId, 10))
-            .eq('status', 'จัดส่งสำเร็จ')
-            .order('created_at', { ascending: false });
+        
+        if (isPreorderFlag && mainOrderDeliveryDate) {
+            // For pre-orders: Calculate from main order's delivery_date + plan days
+            const deliveryDate = new Date(mainOrderDeliveryDate);
+            const daysToAdd = mainOrderPlan === 'monthly' ? 30 : 7;
+            targetDeliveryDate = new Date(deliveryDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000).toISOString();
+        } else {
+            // Regular order logic: Find active completed orders
+            const { data: activeOrdersList } = await supabaseAdmin
+                .from('orders')
+                .select('*')
+                .eq('user_id', parseInt(userId, 10))
+                .eq('status', 'จัดส่งสำเร็จ')
+                .order('created_at', { ascending: false });
 
-        const now = getThaiDate();
-        if (activeOrdersList && activeOrdersList.length > 0) {
-            // Find the most recent completed order with a delivery date
-            for (const order of activeOrdersList) {
-                const dateToUse = order.delivery_date || order.target_delivery_date || order.created_at;
-                if (!dateToUse) continue;
-                
-                const dDate = new Date(dateToUse);
-                const days = order.plan === 'monthly' ? 30 : 7;
-                const expiryD = new Date(dDate.getTime() + days * 24 * 60 * 60 * 1000);
-                
-                if (expiryD > now) {
-                    // This order's period is still active, next delivery starts after it expires
-                    targetDeliveryDate = expiryD.toISOString();
-                    break;
+            const now = getThaiDate();
+            if (activeOrdersList && activeOrdersList.length > 0) {
+                // Find the most recent completed order with a delivery date
+                for (const order of activeOrdersList) {
+                    const dateToUse = order.delivery_date || order.target_delivery_date || order.created_at;
+                    if (!dateToUse) continue;
+                    
+                    const dDate = new Date(dateToUse);
+                    const days = order.plan === 'monthly' ? 30 : 7;
+                    const expiryD = new Date(dDate.getTime() + days * 24 * 60 * 60 * 1000);
+                    
+                    if (expiryD > now) {
+                        // This order's period is still active, next delivery starts after it expires
+                        targetDeliveryDate = expiryD.toISOString();
+                        break;
+                    }
                 }
             }
-        }
-        
-        // If no active completed order found, use current time as target delivery
-        if (!targetDeliveryDate) {
-            targetDeliveryDate = now.toISOString();
+            
+            // If no active completed order found, use current time as target delivery
+            if (!targetDeliveryDate) {
+                targetDeliveryDate = now.toISOString();
+            }
         }
 
         // 5. Create Order
@@ -173,6 +238,7 @@ export async function POST(request: Request) {
                 phone: sanitizedPhone,
                 total_price: totalPrice || 0,
                 target_delivery_date: targetDeliveryDate,
+                is_preorder: isPreorderFlag,
                 // Coupon info
                 coupon_code: couponCode || null,
                 discount_amount: discountAmount || 0,

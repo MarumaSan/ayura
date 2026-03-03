@@ -61,6 +61,7 @@ export default function CheckoutPage() {
                 setBoxSize(orderData.boxSize);
                 setSizeMultiplier(orderData.sizeMultiplier || 1.0);
                 setFinalPrice(orderData.price);
+                setIsPreOrder(orderData.isPreOrder || false); // Read pre-order flag
 
                 // Fetch meal sets
                 const msRes = await fetch('/api/meal-sets');
@@ -215,6 +216,7 @@ export default function CheckoutPage() {
     };
 
     const [createdOrderId, setCreatedOrderId] = useState<string>('');
+    const [isPreOrder, setIsPreOrder] = useState(false);
 
     const submitOrder = async (sessionData: any, method: 'WALLET' | 'PROMPTPAY') => {
         const orderPayload = {
@@ -232,6 +234,7 @@ export default function CheckoutPage() {
             boxSize,
             sizeMultiplier,
             paymentMethod: method,
+            isPreOrder, // Pass pre-order flag
         };
         
         const res = await fetch('/api/user/orders', {

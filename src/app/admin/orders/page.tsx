@@ -275,6 +275,11 @@ export default function OrdersPage() {
                                                         <span className="text-[10px] text-gray-400 px-2 py-0.5 bg-gray-50 border border-gray-100 rounded-full">
                                                             {order.paymentMethod === 'PROMPTPAY' ? '📱 PromptPay' : '💰 Wallet'}
                                                         </span>
+                                                        {order.is_preorder && (
+                                                            <span className="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-bold">
+                                                                ⏳ Pre-order
+                                                            </span>
+                                                        )}
                                                         {order.coupon_code && (
                                                             <span className="text-[10px] px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full">
                                                                 🏷️ {order.coupon_code} (-฿{order.discount_amount?.toLocaleString()})
@@ -297,8 +302,8 @@ export default function OrdersPage() {
                                                         📅 วันที่สั่งซื้อ: {new Date(order.createdAt).toLocaleDateString('th-TH')}
                                                     </div>
                                                     {order.targetDeliveryDate && (
-                                                        <div className="text-[10px] font-medium text-orange-600">
-                                                            📦 ให้ส่งภายใน: {new Date(order.targetDeliveryDate).toLocaleDateString('th-TH')}
+                                                        <div className={`text-[10px] font-medium ${order.is_preorder ? 'text-amber-600 font-bold' : 'text-orange-600'}`}>
+                                                            📦 {order.is_preorder ? 'Pre-order ให้ส่งภายใน' : 'ให้ส่งภายใน'}: {new Date(order.targetDeliveryDate).toLocaleDateString('th-TH')}
                                                         </div>
                                                     )}
                                                     <div className="text-[9px] text-gray-400 leading-none">

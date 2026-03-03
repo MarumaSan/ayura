@@ -28,6 +28,11 @@ export const metadata: Metadata = {
   creator: "Ayura",
   publisher: "Ayura",
   robots: "index, follow",
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
   openGraph: {
     title: "Ayura อายุระ | กล่องสุขภาพจากธรรมชาติ",
     description: "ระบบจัดส่งวัตถุดิบสุขภาพและสมุนไพรจากชุมชน จัดส่งเป็นกล่องสุขภาพรายสัปดาห์",
