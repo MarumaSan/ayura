@@ -51,16 +51,13 @@ export default function InventoryPage() {
         try {
             // Get admin token from localStorage
             const profile = localStorage.getItem('ayuraProfile');
-            console.log('Profile from localStorage:', profile);
-            
             let token = '';
             if (profile) {
                 try {
                     const parsed = JSON.parse(profile);
                     token = parsed.userId || parsed.id || '';
-                    console.log('Token extracted:', token);
-                } catch (e) {
-                    console.error('Failed to parse profile:', e);
+                } catch {
+                    // Failed to parse profile
                 }
             }
             
@@ -69,18 +66,12 @@ export default function InventoryPage() {
                     'Authorization': `Bearer ${token}`
                 }
             });
-            console.log('Response status:', res.status);
-            
             const data = await res.json();
-            console.log('Response data:', data);
-            
             if (data.success) {
                 setIngredients(data.data);
-            } else {
-                console.error('API error:', data.error);
             }
-        } catch (error) {
-            console.error('Fetch error:', error);
+        } catch {
+            // Silently handle fetch error
         } finally {
             setLoading(false);
         }
