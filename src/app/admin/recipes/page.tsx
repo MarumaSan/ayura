@@ -35,9 +35,29 @@ export default function AdminRecipesPage() {
     const fetchAll = async () => {
         setLoading(true);
         try {
+            // Get admin token from localStorage
+            const profile = localStorage.getItem('ayuraProfile');
+            let token = '';
+            if (profile) {
+                try {
+                    const parsed = JSON.parse(profile);
+                    token = parsed.userId || parsed.id || '';
+                } catch {
+                    // Failed to parse profile
+                }
+            }
+
             const [msRes, ingRes] = await Promise.all([
-                fetch('/api/admin/recipes'),
-                fetch('/api/admin/ingredients')
+                fetch('/api/admin/recipes', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                }),
+                fetch('/api/admin/ingredients', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                })
             ]);
             const msJson = await msRes.json();
             const ingJson = await ingRes.json();
@@ -63,10 +83,10 @@ export default function AdminRecipesPage() {
                 const ing = ingredients.find(i => i.id === row.ingredientId);
                 if (ing) {
                     const factor = row.gramsUsed / 100;
-                    calories += (ing.calories_100g || 0) * factor;
-                    protein += (ing.protein_100g || 0) * factor;
-                    carbs += (ing.carbs_100g || 0) * factor;
-                    fat += (ing.fat_100g || 0) * factor;
+                    calories += (ing.calories100g || ing.calories_100g || 0) * factor;
+                    protein += (ing.protein100g || ing.protein_100g || 0) * factor;
+                    carbs += (ing.carbs100g || ing.carbs_100g || 0) * factor;
+                    fat += (ing.fat100g || ing.fat_100g || 0) * factor;
                 }
             }
         });

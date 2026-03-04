@@ -47,6 +47,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             cook_time: body.cookTime,
             servings: body.servings,
             calories: avgNutrition.calories,
+            protein: avgNutrition.protein,
+            carbs: avgNutrition.carbs,
+            fat: avgNutrition.fat,
             steps: body.steps
         };
 
@@ -100,7 +103,11 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             _id: updated.id,
             mealType: updated.meal_type,
             cookTime: updated.cook_time,
-            recipeIngredients: body.recipeIngredients || []
+            recipeIngredients: body.recipeIngredients || [],
+            calories: avgNutrition.calories,
+            protein: avgNutrition.protein,
+            carbs: avgNutrition.carbs,
+            fat: avgNutrition.fat
         };
 
         return NextResponse.json({ success: true, data: compatRecipe });

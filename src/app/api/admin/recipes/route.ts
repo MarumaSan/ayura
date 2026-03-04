@@ -30,12 +30,48 @@ export async function GET() {
             });
         });
 
-        const formatted = recipes.map(r => ({
-            ...r,
-            _id: r.id, // For frontend compatibility if needed
-            mealType: r.meal_type,
-            cookTime: r.cook_time,
-            recipeIngredients: ingsMap[r.id] || []
+        // Get all ingredient IDs used in recipes
+        const allIngredientIds = [...new Set((allIngsItems || []).map(ri => ri.ingredient_id))];
+        
+        // Fetch all ingredients data for nutrition calculation
+        const { data: allIngredients } = await supabaseAdmin
+            .from('ingredients')
+            .select('*')
+            .in('id', allIngredientIds.length > 0 ? allIngredientIds : ['']);
+
+        const ingDataMap: Record<string, any> = {};
+        (allIngredients || []).forEach(ing => {
+            ingDataMap[ing.id] = ing;
+        });
+
+        // Calculate nutrition for each recipe
+        const formatted = await Promise.all(recipes.map(async (r) => {
+            const recipeIngs = ingsMap[r.id] || [];
+            
+            // Calculate nutrition
+            let calories = 0, protein = 0, carbs = 0, fat = 0;
+            for (const ri of recipeIngs) {
+                const ing = ingDataMap[ri.ingredientId];
+                if (ing) {
+                    const factor = ri.gramsUsed / 100;
+                    calories += (ing.calories_100g || 0) * factor;
+                    protein += (ing.protein_100g || 0) * factor;
+                    carbs += (ing.carbs_100g || 0) * factor;
+                    fat += (ing.fat_100g || 0) * factor;
+                }
+            }
+
+            return {
+                ...r,
+                _id: r.id,
+                mealType: r.meal_type,
+                cookTime: r.cook_time,
+                recipeIngredients: recipeIngs,
+                calories: Math.round(calories),
+                protein: Math.round(protein),
+                carbs: Math.round(carbs),
+                fat: Math.round(fat)
+            };
         }));
 
         return NextResponse.json({ success: true, data: formatted });
@@ -90,6 +126,9 @@ export async function POST(req: Request) {
                 cook_time: body.cookTime || 20,
                 servings: body.servings || 1,
                 calories: avgNutrition.calories,
+                protein: avgNutrition.protein,
+                carbs: avgNutrition.carbs,
+                fat: avgNutrition.fat,
                 steps: body.steps || []
             })
             .select()
@@ -121,7 +160,11 @@ export async function POST(req: Request) {
             _id: newRecipe.id,
             mealType: newRecipe.meal_type,
             cookTime: newRecipe.cook_time,
-            recipeIngredients: body.recipeIngredients || []
+            recipeIngredients: body.recipeIngredients || [],
+            calories: avgNutrition.calories,
+            protein: avgNutrition.protein,
+            carbs: avgNutrition.carbs,
+            fat: avgNutrition.fat
         };
 
         return NextResponse.json({ success: true, data: compatRecipe }, { status: 201 });
