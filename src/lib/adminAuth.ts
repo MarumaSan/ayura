@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 // Admin authentication middleware
 export async function verifyAdmin(request: NextRequest): Promise<{ isAdmin: boolean; userId?: string; error?: string }> {
@@ -16,8 +16,8 @@ export async function verifyAdmin(request: NextRequest): Promise<{ isAdmin: bool
             return { isAdmin: false, error: 'Invalid authorization format' };
         }
 
-        // Verify user and check admin role
-        const { data: user, error } = await supabase
+        // Verify user and check admin role using supabaseAdmin to bypass RLS
+        const { data: user, error } = await supabaseAdmin
             .from('users')
             .select('id, role')
             .eq('id', token)
