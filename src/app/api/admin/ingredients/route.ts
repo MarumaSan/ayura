@@ -27,6 +27,9 @@ export async function GET(request: Request) {
             gramsPerUnit: 100 // Legacy field
         }));
 
+        // Debug: Log stock values
+        console.log('Ingredients with stock:', compatIngredients.map(i => ({ name: i.name, stock: i.inStock })));
+
         return NextResponse.json({ success: true, data: compatIngredients });
     } catch (error: any) {
         return NextResponse.json({ success: false, error: 'Failed to fetch' }, { status: 500 });
