@@ -40,13 +40,14 @@ export async function GET(request: Request) {
 
         const boxIngredientIds = new Set(boxItems.map((bi: any) => bi.ingredient_id));
 
-        // 2. Fetch ALL recipes along with their ingredients
+        // 2. Fetch ALL recipes along with their ingredients (including grams_used)
         const { data: allRecipesObj } = await supabaseAdmin
             .from('recipes')
             .select(`
                 *,
                 recipe_ingredients (
-                    ingredient_id
+                    ingredient_id,
+                    grams_used
                 )
             `);
 
@@ -97,7 +98,20 @@ export async function GET(request: Request) {
             if (pool.length === 0) pool = byType[mealType];
 
             const seed = hashCode(`${todayStr}-${mealType}-${mealSetId}`);
-            todayMenu[mealType] = seededPick(pool, seed) || null;
+            const selected = seededPick(pool, seed);
+            
+            // Transform recipe_ingredients to ingredients format for dashboard
+            if (selected) {
+                todayMenu[mealType] = {
+                    ...selected,
+                    ingredients: (selected.recipe_ingredients || []).map((ri: any) => ({
+                        ingredientId: ri.ingredient_id,
+                        gramsUsed: ri.grams_used
+                    }))
+                };
+            } else {
+                todayMenu[mealType] = null;
+            }
         }
 
         return NextResponse.json({
