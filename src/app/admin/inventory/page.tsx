@@ -6,10 +6,10 @@ import Link from 'next/link';
 const categories = ['ทั้งหมด', 'ผัก', 'สมุนไพร', 'ผลไม้', 'โปรตีน', 'ธัญพืช'];
 
 function getStockStatus(stock: number): { label: string; color: string; bg: string } {
-    if (stock > 100) return { label: 'พร้อมส่ง', color: 'var(--color-success)', bg: 'rgba(16,185,129,0.1)' };
-    if (stock > 50) return { label: 'ปกติ', color: 'var(--color-primary)', bg: 'rgba(45,106,79,0.1)' };
-    if (stock > 0) return { label: 'ใกล้หมด', color: 'var(--color-warning)', bg: 'rgba(245,158,11,0.1)' };
-    return { label: 'หมด', color: 'var(--color-danger)', bg: 'rgba(239,68,68,0.1)' };
+    if (stock === 0) return { label: 'หมด', color: 'var(--color-danger)', bg: 'rgba(239,68,68,0.1)' };
+    if (stock < 2000) return { label: 'ใกล้หมด', color: 'var(--color-danger)', bg: 'rgba(239,68,68,0.1)' };
+    if (stock < 10000) return { label: 'ใกล้หมด', color: 'var(--color-warning)', bg: 'rgba(245,158,11,0.1)' };
+    return { label: 'พร้อมส่ง', color: 'var(--color-success)', bg: 'rgba(16,185,129,0.1)' };
 }
 
 export default function InventoryPage() {
@@ -87,12 +87,8 @@ export default function InventoryPage() {
     });
 
     const totalStock = ingredients.reduce((sum, i) => sum + (i.inStock || 0), 0);
-    const lowStockItems = ingredients.filter((i) => (i.inStock || 0) < 10000);
-
-    // Debug: Log calculation
-    console.log('Ingredients:', ingredients.length);
-    console.log('Stock values:', ingredients.map(i => ({ name: i.name, stock: i.inStock })));
-    console.log('Total stock calculated:', totalStock);
+    const lowStockItems = ingredients.filter((i) => (i.inStock || 0) < 10000 && (i.inStock || 0) > 0);
+    const outOfStockItems = ingredients.filter((i) => (i.inStock || 0) === 0);
 
     const handleSave = async () => {
         if (!formData.name) return alert('กรุณาระบุชื่อวัตถุดิบ');
@@ -258,12 +254,12 @@ export default function InventoryPage() {
                         <div className="text-2xl font-bold text-[var(--color-primary)]">{totalStock}</div>
                     </div>
                     <div className="glass-card p-4 animate-fade-in delay-200">
-                        <div className="text-sm text-[var(--color-text-light)]">ใกล้หมด</div>
+                        <div className="text-sm text-[var(--color-text-light)]">ใกล้หมด (&lt;10,000g)</div>
                         <div className="text-2xl font-bold text-[var(--color-warning)]">{lowStockItems.length}</div>
                     </div>
                     <div className="glass-card p-4 animate-fade-in delay-300">
-                        <div className="text-sm text-[var(--color-text-light)]">ชุมชนผู้ผลิตทั้งหมด</div>
-                        <div className="text-2xl font-bold text-[var(--color-primary)]">{communities.length}</div>
+                        <div className="text-sm text-[var(--color-text-light)]">หมด (0 กรัม)</div>
+                        <div className="text-2xl font-bold text-[var(--color-danger)]">{outOfStockItems.length}</div>
                     </div>
                 </div>
 

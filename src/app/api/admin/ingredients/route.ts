@@ -1,14 +1,21 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { verifyAdmin } from '@/lib/adminAuth';
 
 export async function GET(request: Request) {
     try {
-        const { data: ingredients, error } = await supabaseAdmin
+        // Verify admin authentication
+        const { isAdmin, error } = await verifyAdmin(request as any);
+        if (!isAdmin) {
+            return NextResponse.json({ success: false, error: error || 'Unauthorized' }, { status: 403 });
+        }
+
+        const { data: ingredients, error: dbError } = await supabaseAdmin
             .from('ingredients')
             .select('*')
             .order('name', { ascending: true });
 
-        if (error) throw error;
+        if (dbError) throw dbError;
 
         // Map back to camelCase for frontend compatibility, as we haven't updated the frontend admin panels yet
         const compatIngredients = (ingredients || []).map(ing => ({
@@ -27,9 +34,6 @@ export async function GET(request: Request) {
             gramsPerUnit: 100 // Legacy field
         }));
 
-        // Debug: Log stock values
-        console.log('Ingredients with stock:', compatIngredients.map(i => ({ name: i.name, stock: i.inStock })));
-
         return NextResponse.json({ success: true, data: compatIngredients });
     } catch (error: any) {
         return NextResponse.json({ success: false, error: 'Failed to fetch' }, { status: 500 });
@@ -38,6 +42,12 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
+        // Verify admin authentication
+        const { isAdmin, error: authError } = await verifyAdmin(request as any);
+        if (!isAdmin) {
+            return NextResponse.json({ success: false, error: authError || 'Unauthorized' }, { status: 403 });
+        }
+
         const body = await request.json();
 
         // Generate ID from English name: lowercase with hyphens
@@ -52,7 +62,7 @@ export async function POST(request: Request) {
 
         const newId = generateIdFromName(body.nameEnglish || body.name || 'ingredient');
 
-        const { data: newIngredient, error } = await supabaseAdmin
+        const { data: newIngredient, error: dbError } = await supabaseAdmin
             .from('ingredients')
             .insert({
                 id: newId,
@@ -72,8 +82,8 @@ export async function POST(request: Request) {
             .select()
             .single();
 
-        if (error || !newIngredient) {
-            throw new Error(error?.message || 'Failed to create ingredient');
+        if (dbError || !newIngredient) {
+            throw new Error(dbError?.message || 'Failed to create ingredient');
         }
 
         const compatIngredient = {
@@ -93,8 +103,8 @@ export async function POST(request: Request) {
         };
 
         return NextResponse.json({ success: true, data: compatIngredient }, { status: 201 });
-    } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    } catch (err: any) {
+        return NextResponse.json({ success: false, error: err?.message || 'Failed to create ingredient' }, { status: 500 });
     }
 }
 
