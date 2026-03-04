@@ -47,6 +47,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             description: body.description,
             image: body.image,
             is_active: body.isActive,
+            price_weekly: body.priceWeekly,
+            price_monthly: body.priceMonthly,
             avg_nutrition: avgNutrition,
         };
 
