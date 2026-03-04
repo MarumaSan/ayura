@@ -1,6 +1,16 @@
+'use client';
+
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 export default function Footer() {
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+    useEffect(() => {
+        const profile = localStorage.getItem('ayuraProfile');
+        setIsLoggedIn(!!profile);
+    }, []);
+
     return (
         <footer className="bg-[var(--color-primary-dark)] text-white">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -26,21 +36,40 @@ export default function Footer() {
                             เมนูหลัก
                         </h4>
                         <ul className="space-y-2">
-                            {[
-                                { href: '/', label: 'หน้าแรก' },
-                                { href: '/login', label: 'เข้าสู่ระบบ / สมัครสมาชิก' },
-                                { href: '/dashboard', label: 'กล่องสุขภาพ' },
-                                { href: '/reword-points', label: 'แต้มสะสม' },
-                            ].map((link) => (
-                                <li key={link.href}>
+                            <li>
+                                <Link
+                                    href="/"
+                                    className="text-sm text-white/70 hover:text-white transition-colors"
+                                >
+                                    หน้าแรก
+                                </Link>
+                            </li>
+                            {!isLoggedIn && (
+                                <li>
                                     <Link
-                                        href={link.href}
+                                        href="/login"
                                         className="text-sm text-white/70 hover:text-white transition-colors"
                                     >
-                                        {link.label}
+                                        เข้าสู่ระบบ / สมัครสมาชิก
                                     </Link>
                                 </li>
-                            ))}
+                            )}
+                            <li>
+                                <Link
+                                    href="/dashboard"
+                                    className="text-sm text-white/70 hover:text-white transition-colors"
+                                >
+                                    กล่องสุขภาพ
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
+                                    href="/reword-points"
+                                    className="text-sm text-white/70 hover:text-white transition-colors"
+                                >
+                                    แต้มสะสม
+                                </Link>
+                            </li>
                         </ul>
                     </div>
 

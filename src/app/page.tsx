@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 const features = [
   {
@@ -52,6 +55,13 @@ const stats = [
 ];
 
 export default function Home() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const profile = localStorage.getItem('ayuraProfile');
+    setIsLoggedIn(!!profile);
+  }, []);
+
   return (
     <div className="overflow-hidden">
       {/* Hero Section */}
@@ -83,9 +93,11 @@ export default function Home() {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/login" className="btn-primary text-base sm:text-lg !py-3 sm:!py-4 !px-6 sm:!px-8 w-full sm:w-auto text-center shadow-lg hover:-translate-y-1">
-                  เข้าสู่ระบบเลย 🚀
-                </Link>
+                {!isLoggedIn && (
+                  <Link href="/login" className="btn-primary text-base sm:text-lg !py-3 sm:!py-4 !px-6 sm:!px-8 w-full sm:w-auto text-center shadow-lg hover:-translate-y-1">
+                    เข้าสู่ระบบเลย 🚀
+                  </Link>
+                )}
                 <Link href="/meal-plan" className="btn-outline !border-white/30 !text-white hover:!bg-white/10 text-base !py-4 !px-8 justify-center">
                   ดูตัวอย่างเซ็ตอาหาร
                 </Link>
@@ -227,9 +239,11 @@ export default function Home() {
           <p className="text-lg text-white/80 mb-8 max-w-xl mx-auto">
             กรอกข้อมูลสุขภาพเพียง 1 นาที แล้วให้ Algorithm เลือกกล่องสุขภาพที่เหมาะกับคุณ
           </p>
-          <Link href="/login" className="btn-secondary text-lg !py-4 !px-10">
-            เข้าสู่ระบบเลย 🚀
-          </Link>
+          {!isLoggedIn && (
+            <Link href="/login" className="btn-secondary text-lg !py-4 !px-10">
+              เข้าสู่ระบบเลย 🚀
+            </Link>
+          )}
         </div>
       </section>
     </div>

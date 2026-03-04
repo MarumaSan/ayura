@@ -265,8 +265,8 @@ export default function Navbar() {
                                                             }}
                                                             className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-[var(--color-primary)] transition-all w-full text-left"
                                                         >
-                                                            <span className="text-lg">👤</span>
-                                                            <span>แนะนำเพื่อน</span>
+                                                            <span className="text-lg">🎁</span>
+                                                            <span>ชวนเพื่อน</span>
                                                             {referralStats.pendingCount > 0 && (
                                                                 <span className="ml-auto text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
                                                                     รอ {referralStats.pendingCount}
@@ -348,7 +348,7 @@ export default function Navbar() {
 
                 {/* Mobile Menu */}
                 <div
-                    className={`md:hidden transition-all duration-300 overflow-hidden ${isOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                    className={`md:hidden absolute top-full left-0 right-0 bg-white shadow-lg border-t border-gray-100 transition-all duration-300 overflow-y-auto z-50 ${isOpen ? 'max-h-[85vh] opacity-100' : 'max-h-0 opacity-0'
                         }`}
                 >
                     <div className="px-4 pb-4 space-y-1">
@@ -367,6 +367,7 @@ export default function Navbar() {
                         ))}
                         {isLoggedIn ? (
                             <div className="pt-4 border-t border-gray-100 mt-4 space-y-2">
+                                {/* Profile Header */}
                                 <div className="px-4 py-2 flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] flex items-center justify-center text-white font-bold text-lg">
                                         {userName.charAt(0)}
@@ -376,6 +377,27 @@ export default function Navbar() {
                                         <p className="text-sm font-bold text-[var(--color-primary-dark)] truncate">{userName}</p>
                                     </div>
                                 </div>
+
+                                {/* Wallet Section */}
+                                <div className="px-4 py-2">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">กระเป๋าเงิน (Wallet)</p>
+                                            <p className="text-base font-bold text-[var(--color-primary)]">฿{balance.toLocaleString()}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                setIsOpen(false);
+                                                setShowTopupModal(true);
+                                            }}
+                                            className="text-xs bg-[var(--color-primary)] text-white px-3 py-1.5 rounded-lg hover:bg-[var(--color-primary-dark)] transition-colors"
+                                        >
+                                            เติมเงิน
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Health Info Section */}
                                 <div className="space-y-1">
                                     <div className="px-4 py-1.5">
                                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">ข้อมูลสุขภาพ</span>
@@ -383,7 +405,7 @@ export default function Navbar() {
                                     <Link
                                         href="/profile"
                                         onClick={() => setIsOpen(false)}
-                                        className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-700 bg-white/50 hover:bg-[var(--color-primary)]/10 transition-colors border border-gray-100"
+                                        className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-700 hover:bg-[var(--color-primary)]/10 transition-colors"
                                     >
                                         <span className="text-lg">📊</span>
                                         <span>ข้อมูลส่วนตัว</span>
@@ -391,13 +413,14 @@ export default function Navbar() {
                                     <Link
                                         href="/reword-points"
                                         onClick={() => setIsOpen(false)}
-                                        className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-700 bg-white/50 hover:bg-[var(--color-primary)]/10 transition-colors border border-gray-100"
+                                        className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-700 hover:bg-[var(--color-primary)]/10 transition-colors"
                                     >
                                         <span className="text-lg">🌟</span>
                                         <span>แต้มสะสม</span>
                                     </Link>
                                 </div>
 
+                                {/* Friend Referral Section */}
                                 <div className="pt-2">
                                     <div className="px-4 py-1.5 flex items-center gap-2">
                                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">ชวนเพื่อน</span>
@@ -412,7 +435,7 @@ export default function Navbar() {
                                             setIsOpen(false); 
                                             setShowFriendModal(true); 
                                         }}
-                                        className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-gray-700 bg-white/50 hover:bg-[var(--color-primary)]/10 transition-colors border border-gray-100"
+                                        className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-gray-700 hover:bg-[var(--color-primary)]/10 transition-colors"
                                     >
                                         <span className="text-lg">🎁</span>
                                         <span>ชวนเพื่อน</span>
@@ -424,6 +447,7 @@ export default function Navbar() {
                                     </button>
                                 </div>
 
+                                {/* Management Section - Logout */}
                                 <div className="pt-2">
                                     <div className="px-4 py-1.5">
                                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">การจัดการ</span>
@@ -451,8 +475,8 @@ export default function Navbar() {
 
                 {/* Top-up Modal */}
                 {showTopupModal && (
-                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-                        <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 p-4" style={{ display: 'grid', placeItems: 'center', paddingTop: 'max(16px, env(safe-area-inset-top))', paddingBottom: 'max(16px, env(safe-area-inset-bottom))', minHeight: '-webkit-fill-available' }}>
+                        <div className="bg-white rounded-2xl p-4 sm:p-6 max-w-md w-full shadow-2xl" style={{ margin: 'auto', maxHeight: 'calc(100vh - 32px)', overflowY: 'auto' }}>
                             <h2 className="text-xl font-bold mb-4 text-[var(--color-primary-dark)]">เติมเงินเข้า Wallet</h2>
 
                             {!showQR ? (
@@ -487,22 +511,23 @@ export default function Navbar() {
                                 </>
                             ) : (
                                 <div className="text-center animate-fade-in">
-                                    <div className="bg-blue-900 text-white py-3 rounded-t-xl mx-4 font-bold tracking-wider">
+                                    <div className="bg-blue-900 text-white py-2 sm:py-3 rounded-t-xl mx-2 sm:mx-4 font-bold tracking-wider text-sm sm:text-base">
                                         PromptPay
                                     </div>
-                                    <div className="bg-white p-4 border-2 border-t-0 border-blue-900 rounded-b-xl mx-4 mb-6 shadow-sm flex flex-col items-center justify-center min-h-[200px]">
-                                        <div className="w-48 h-48 bg-white flex items-center justify-center mb-4 border border-gray-100 rounded-lg overflow-hidden">
+                                    <div className="bg-white p-2 sm:p-4 border-2 border-t-0 border-blue-900 rounded-b-xl mx-2 sm:mx-4 mb-4 sm:mb-6 shadow-sm flex flex-col items-center justify-center min-h-[160px] sm:min-h-[200px]">
+                                        <div className="w-32 h-32 sm:w-48 sm:h-48 bg-white flex items-center justify-center mb-2 sm:mb-4 border border-gray-100 rounded-lg overflow-hidden">
                                             <QRCodeSVG
                                                 value={generatePayload(process.env.NEXT_PUBLIC_PROMPTPAY_NUMBER || '0000000000', { amount: Number(topupAmount) })}
-                                                size={180}
+                                                size={128}
+                                                className="sm:w-[180px] sm:h-[180px]"
                                                 level="L"
                                                 includeMargin={false}
                                             />
                                         </div>
-                                        <div className="text-sm text-gray-500 mb-1">ยอดชำระ</div>
-                                        <div className="text-3xl font-bold text-[var(--color-primary)]">฿{Number(topupAmount).toLocaleString()}</div>
+                                        <div className="text-xs sm:text-sm text-gray-500 mb-1">ยอดชำระ</div>
+                                        <div className="text-2xl sm:text-3xl font-bold text-[var(--color-primary)]">฿{Number(topupAmount).toLocaleString()}</div>
                                     </div>
-                                    <p className="text-sm text-gray-500 mb-6 px-4">
+                                    <p className="text-xs sm:text-sm text-gray-500 mb-4 sm:mb-6 px-2 sm:px-4">
                                         กรุณาสแกน QR Code ด้วยแอพพลิเคชั่นธนาคารของคุณ
                                     </p>
                                     <div className="flex gap-3">
@@ -531,8 +556,8 @@ export default function Navbar() {
             {/* Topup Pending Popup */}
             {
                 showTopupPendingPopup && (
-                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in">
-                        <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in overflow-y-auto" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                        <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl my-4">
                             <div className="text-7xl mb-6 animate-pulse">⏳</div>
                             <h2 className="text-xl font-bold text-[var(--color-primary-dark)] mb-3">รอยืนยันการเติมเงิน</h2>
                             <p className="text-sm text-gray-500 mb-6 leading-relaxed">
@@ -553,8 +578,8 @@ export default function Navbar() {
 
             {/* Friend Referral Modal */}
             {showFriendModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in">
-                    <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in overflow-y-auto" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                    <div className="bg-white rounded-2xl p-4 sm:p-6 max-w-md w-full shadow-2xl my-4">
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-xl font-bold text-[var(--color-primary-dark)]">ชวนเพื่อน 🎁</h2>
                             <button

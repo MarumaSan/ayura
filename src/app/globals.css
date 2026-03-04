@@ -384,3 +384,54 @@ body {
     min-width: 44px;
   }
 }
+
+/* Safari-specific fixes */
+@supports (-webkit-touch-callout: none) {
+  /* iOS Safari only */
+  .glass-card {
+    /* iOS Safari needs explicit background for backdrop-filter */
+    background: rgba(255, 255, 255, 0.85);
+  }
+  
+  /* Fix fixed positioning issues on iOS Safari */
+  .fixed {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+  
+  /* Ensure modals are properly centered on iOS */
+  .fixed.inset-0 {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Fix flexbox centering in Safari */
+  .flex.items-center.justify-center {
+    -webkit-align-items: center;
+    align-items: center;
+    -webkit-justify-content: center;
+    justify-content: center;
+  }
+}
+
+/* Safe area support for notched devices */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Prevent horizontal scroll on mobile */
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* Fix for Safari z-index stacking context */
+nav {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
