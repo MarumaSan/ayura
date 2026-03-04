@@ -1,0 +1,234 @@
+# 🚀 Ayura MVP + Main Features
+
+## MVP Core Loop
+
+```
+1. สมัครสมาชิก → กรอกข้อมูลสุขภาพ (BMI/TDEE)
+2. AI แนะนำ Meal Set ที่เหมาะกับ user
+3. เลือก Plan (รายสัปดาห์/เดือน) + ไซส์ (M/L/XL)
+4. ชำระเงิน (PromptPay/Wallet)
+5. รอจัดส่ง → รับกล่องอาหาร
+6. เข้า Dashboard ดูเมนูประจำวัน + วัตถุดิบในกล่อง
+```
+
+---
+
+## User Features (11)
+
+| # | Feature | Key Files | Description |
+|---|---------|-----------|-------------|
+| 1 | **Auth System** | `/api/auth/login`, `/api/auth/register` | Register/Login ด้วย bcrypt (salt rounds 12) + JWT |
+| 2 | **Health Profile** | `lib/bmiCalculator.ts`, `app/onboarding/page.tsx` | เก็บ BMI, TDEE, เป้าหมายสุขภาพ, คำนวณ BMR |
+| 3 | **AI Meal Recommendation** | `lib/mealRecommender.ts`, `/api/meal-sets/recommended` | Score algorithm 100 points max (BMI 30 + Calorie 30 + Macro 20 + Goals 20) |
+| 4 | **Meal Set Selection** | `app/meal-plan/page.tsx` | เลือกเซ็ต + ไซส์ + plan duration (weekly/monthly) |
+| 5 | **Daily Menu** | `/api/user/daily-menu`, `app/dashboard/page.tsx` | AI สร้างเมนู 3 มื้อ/วัน จากวัตถุดิบในกล่อง (deterministic hash, no repeat) |
+| 6 | **PromptPay Payment** | `app/checkout/page.tsx`, `promptpay-qr` library | สร้าง QR + รอ admin อนุมัติ |
+| 7 | **Wallet System** | `components/Navbar.tsx`, `/api/wallet/*` | เติมเงิน + จ่ายผ่าน wallet balance (atomic RPC) |
+| 8 | **Pre-order** | `/api/user/meal-plan-status`, `app/meal-plan/page.tsx` | สั่งกล่องถัดไปล่วงหน้า ตอนกล่องปัจจุบันยังไม่หมดอายุ |
+| 9 | **Order Tracking** | `app/dashboard/page.tsx` | ดูสถานะ order แบบ real-time |
+| 10 | **Reward Points** | `app/reword-points/page.tsx` | ได้แต้มจากการซื้อ + แลกรางวัล |
+| 11 | **Referral** | `/api/auth/register` (referralCode) | ชวนเพื่อนได้แต้ม 50 pts/คน |
+
+---
+
+## Admin Features (6)
+
+| # | Feature | Key Files | Description |
+|---|---------|-----------|-------------|
+| 1 | **Orders Management** | `app/admin/orders/page.tsx`, `/api/admin/orders/*` | อัปเดตสถานะ order ทั้งหมด (status pipeline) |
+| 2 | **Inventory** | `app/admin/inventory/page.tsx`, `/api/admin/ingredients/*` | CRUD วัตถุดิบ + จัดการ stock + ชุมชน |
+| 3 | **Meal Set Builder** | `app/admin/mealsets/page.tsx`, `/api/admin/mealsets/*` | สร้างเซ็ตอาหาร + คำนวณ nutrition อัตโนมัติ |
+| 4 | **Recipe Management** | `app/admin/recipes/page.tsx`, `/api/admin/recipes/*` | จัดการสูตรอาหาร + วัตถุดิบ |
+| 5 | **Top-up Approval** | `app/admin/topups/[id]/page.tsx`, `/api/admin/topup/*` | อนุมัติ/ปฏิเสธการเติมเงิน |
+| 6 | **Revenue Dashboard** | `app/admin/page.tsx` | ดูยอดขาย ยอดเติมเงิน สถิติต่างๆ |
+
+---
+
+## Key Algorithms
+
+### BMI/BMR/TDEE
+```
+BMI = weight(kg) / height(m)²
+
+BMR (Men) = 66.5 + 13.75w + 5.003h − 6.755a
+BMR (Women) = 655.1 + 9.563w + 1.850h − 4.676a
+
+TDEE = BMR × 1.55 (moderate activity)
+```
+
+### Meal Scoring (100 points)
+```
+BMI Match: 30 pts
+  - ≤10% deviation = 30
+  - ≤20% deviation = 20
+  - ≤35% deviation = 10
+
+Calorie Fit: 30 pts
+  - ≤5% deviation = 30
+  - ≤15% deviation = 20
+  - ≤30% deviation = 10
+
+Macro Balance: 20 pts
+  - Protein/Carbs/Fat alignment
+
+Goal Alignment: 20 pts
+  - ลดน้ำหนัก: low cal check
+  - สร้างกล้ามเนื้อ: high protein check
+```
+
+### Daily Menu
+- Deterministic hash-based (Thai timezone)
+- No repeat from yesterday
+- Filter by box ingredients only
+
+### Box Size by TDEE
+| TDEE | Size | Multiplier |
+|------|------|------------|
+| ≤1,800 | M | ×1.0 |
+| 1,801-2,200 | L | ×1.3 |
+| >2,200 | XL | ×1.6 |
+
+### Calorie Targets by Goal
+| Goal | Multiplier |
+|------|------------|
+| ลดน้ำหนัก | ×0.80 |
+| สร้างกล้ามเนื้อ | ×1.10 |
+| รักษาสุขภาพ | ×1.00 |
+
+### Macro Splits
+| Goal | Protein | Carbs | Fat |
+|------|---------|-------|-----|
+| ลดน้ำหนัก | 30% | 40% | 30% |
+| สร้างกล้ามเนื้อ | 35% | 45% | 20% |
+| รักษาสุขภาพ | 25% | 50% | 25% |
+
+---
+
+## Pre-order Logic
+
+```typescript
+// Conditions to create pre-order:
+canPreorder = 
+  mainOrder.status === 'จัดส่งสำเร็จ' 
+  && !isPreOrderActive
+  && !activePreOrder
+  && mainOrder not expired
+
+// Target Delivery Date calculation:
+if (isPreorder) {
+  targetDeliveryDate = mainOrder.delivery_date + (7 or 30 days)
+}
+```
+
+---
+
+## Payment States
+
+### PromptPay Flow
+```
+รอยืนยันการชำระเงิน → รออนุมัติ → รอจัดส่ง → กำลังขนส่ง → จัดส่งสำเร็จ
+```
+
+### Wallet Flow (skip first step)
+```
+รออนุมัติ → รอจัดส่ง → กำลังขนส่ง → จัดส่งสำเร็จ
+```
+
+### Top-up Flow
+```
+Create QR → User pays → Click confirm → pending → Admin approves → balance added
+```
+
+---
+
+## Reward Points
+
+### Earning
+| Action | Points |
+|--------|--------|
+| Register | 50 |
+| Use referral code | 50 |
+| Buy weekly plan | 100 |
+| Buy monthly plan | 500 |
+
+### Spending
+- Redeem coupons (fixed/percentage/free_shipping)
+- Redeem catalog items
+
+---
+
+## Database Tables (7 Main)
+
+1. **users** - ผู้ใช้ + wallet + points + referral
+2. **communities** - ชุมชนผู้ผลิต
+3. **ingredients** - วัตถุดิบ + nutrition
+4. **recipes** - สูตรอาหาร
+5. **mealsets** - เซ็ตอาหาร
+6. **orders** - คำสั่งซื้อ + pre-order flag
+7. **topup_requests** - คำขอเติมเงิน
+
+### Junction Tables
+- recipe_ingredients
+- mealset_box_ingredients
+- referrals
+- reward_redemptions
+- user_coupons
+
+---
+
+## Tech Stack Summary
+
+| Layer | Technology |
+|-------|------------|
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript 5 |
+| Database | Supabase (PostgreSQL) |
+| Styling | Tailwind CSS 4 |
+| Auth | bcryptjs (salt rounds 12) |
+| Payment | PromptPay QR |
+| State | React useState + localStorage |
+
+---
+
+## File Structure
+
+```
+src/
+├── app/
+│   ├── page.tsx              # Landing
+│   ├── login/                # Auth
+│   ├── onboarding/           # Health profile
+│   ├── dashboard/            # User dashboard
+│   ├── meal-plan/            # Select meal set
+│   ├── checkout/             # Payment
+│   ├── reword-points/        # Rewards
+│   ├── admin/                # Admin section
+│   │   ├── orders/           # Order management
+│   │   ├── inventory/        # Ingredients
+│   │   ├── mealsets/         # Meal set builder
+│   │   ├── recipes/          # Recipes
+│   │   └── rewards/          # Redemptions
+│   └── api/                  # All API routes
+├── components/
+│   ├── Navbar.tsx            # Navigation
+│   ├── Footer.tsx
+│   ├── AdminGuard.tsx
+│   └── ErrorBoundary.tsx
+├── lib/
+│   ├── supabase.ts           # Database
+│   ├── bmiCalculator.ts      # Health calc
+│   ├── mealRecommender.ts    # AI scoring
+│   ├── dateUtils.ts          # Thai timezone
+│   ├── rateLimit.ts          # Rate limiting
+│   └── authHelpers.ts        # Auth utils
+└── models/
+    ├── Order.ts
+    ├── MealSet.ts
+    ├── Ingredient.ts
+    ├── Recipe.ts
+    ├── Community.ts
+    └── User.ts
+```
+
+---
+Generated: March 2025

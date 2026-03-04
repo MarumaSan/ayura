@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { verifyAdmin } from '@/lib/adminAuth';
 
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
     try {
+        // Verify admin authentication
+        const { isAdmin, error: authError } = await verifyAdmin(request as any);
+        if (!isAdmin) {
+            return NextResponse.json({ success: false, error: authError || 'Unauthorized' }, { status: 403 });
+        }
+
         const params = await context.params;
         const body = await request.json();
 
@@ -63,6 +70,12 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
 
 export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
     try {
+        // Verify admin authentication
+        const { isAdmin, error: authError } = await verifyAdmin(request as any);
+        if (!isAdmin) {
+            return NextResponse.json({ success: false, error: authError || 'Unauthorized' }, { status: 403 });
+        }
+
         const params = await context.params;
 
         // Check if ingredient is used in recipes

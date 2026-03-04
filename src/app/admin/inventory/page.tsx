@@ -49,7 +49,15 @@ export default function InventoryPage() {
     const fetchIngredients = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/admin/ingredients');
+            // Get admin token from localStorage
+            const profile = localStorage.getItem('ayuraProfile');
+            const token = profile ? JSON.parse(profile).id : '';
+            
+            const res = await fetch('/api/admin/ingredients', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
             const data = await res.json();
             if (data.success) {
                 setIngredients(data.data);
@@ -101,9 +109,16 @@ export default function InventoryPage() {
 
             const dataToSave = { ...formData };
 
+            // Get admin token from localStorage
+            const profile = localStorage.getItem('ayuraProfile');
+            const token = profile ? JSON.parse(profile).id : '';
+
             const res = await fetch(url, {
                 method,
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify(dataToSave)
             });
             const data = await res.json();
@@ -149,7 +164,16 @@ export default function InventoryPage() {
     const handleDelete = async (id: string) => {
         if (!confirm('ยืนยันการลบวัตถุดิบนี้?')) return;
         try {
-            const res = await fetch(`/api/admin/ingredients/${id}`, { method: 'DELETE' });
+            // Get admin token from localStorage
+            const profile = localStorage.getItem('ayuraProfile');
+            const token = profile ? JSON.parse(profile).id : '';
+            
+            const res = await fetch(`/api/admin/ingredients/${id}`, { 
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
             const data = await res.json();
             
             if (data.success) {
