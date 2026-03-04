@@ -87,7 +87,12 @@ export default function InventoryPage() {
     });
 
     const totalStock = ingredients.reduce((sum, i) => sum + (i.inStock || 0), 0);
-    const lowStockItems = ingredients.filter((i) => (i.inStock || 0) < 80);
+    const lowStockItems = ingredients.filter((i) => (i.inStock || 0) < 10000);
+
+    // Debug: Log calculation
+    console.log('Ingredients:', ingredients.length);
+    console.log('Stock values:', ingredients.map(i => ({ name: i.name, stock: i.inStock })));
+    console.log('Total stock calculated:', totalStock);
 
     const handleSave = async () => {
         if (!formData.name) return alert('กรุณาระบุชื่อวัตถุดิบ');
