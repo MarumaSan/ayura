@@ -47,9 +47,25 @@ export default function AdminMealSetsPage() {
     const fetchAll = useCallback(async () => {
         setLoading(true);
         try {
+            // Get admin token from localStorage
+            const profile = localStorage.getItem('ayuraProfile');
+            let token = '';
+            if (profile) {
+                try {
+                    const parsed = JSON.parse(profile);
+                    token = parsed.userId || parsed.id || '';
+                } catch {
+                    // Failed to parse profile
+                }
+            }
+
             const [msRes, ingRes] = await Promise.all([
                 fetch('/api/admin/mealsets'),
-                fetch('/api/admin/ingredients'),
+                fetch('/api/admin/ingredients', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                }),
             ]);
             const msJson = await msRes.json();
             const ingJson = await ingRes.json();
