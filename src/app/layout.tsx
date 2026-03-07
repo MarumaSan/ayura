@@ -30,12 +30,11 @@ export const metadata: Metadata = {
   robots: "index, follow",
   icons: {
     icon: [
-      { url: '/logo.svg', type: 'image/svg+xml' },
+      { url: '/favicon.svg', type: 'image/svg+xml' },
       { url: '/apple-touch-icon.png', type: 'image/png', sizes: '180x180' },
       { url: '/android-chrome-192x192.png', type: 'image/png', sizes: '192x192' },
-      { url: '/favicon-32x32.png', type: 'image/png', sizes: '32x32' },
     ],
-    shortcut: '/logo.svg',
+    shortcut: '/favicon.svg',
     apple: '/apple-touch-icon.png',
   },
   openGraph: {
