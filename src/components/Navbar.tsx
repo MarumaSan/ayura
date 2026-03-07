@@ -166,9 +166,9 @@ export default function Navbar() {
         <>
             <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-white/20">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center justify-between h-16">
-                        {/* Logo */}
-                        <Link href="/" className="flex items-center gap-2 group">
+                    <div className="flex items-center justify-center h-16 relative">
+                        {/* Logo - Centered */}
+                        <Link href="/" className="flex items-center gap-2 group absolute left-1/2 -translate-x-1/2">
                             <Image 
                                 src="/logo.svg" 
                                 alt="Ayura" 
@@ -179,8 +179,8 @@ export default function Navbar() {
                             />
                         </Link>
 
-                        {/* Desktop Nav */}
-                        <div className="hidden md:flex items-center gap-1">
+                        {/* Desktop Nav - Left */}
+                        <div className="hidden md:flex items-center gap-1 mr-auto">
                             {visibleNavLinks.map((link) => (
                                 <Link
                                     key={link.href}
@@ -193,8 +193,8 @@ export default function Navbar() {
                             ))}
                         </div>
 
-                        {/* CTA Button & Profile Dropdown (desktop) */}
-                        <div className="hidden md:flex items-center gap-4 relative">
+                        {/* CTA Button & Profile Dropdown (desktop) - Right */}
+                        <div className="hidden md:flex items-center gap-4 relative ml-auto">
                             {isLoggedIn ? (
                                 <>
                                     {/* Wallet Bubble */}
@@ -324,10 +324,10 @@ export default function Navbar() {
                             )}
                         </div>
 
-                        {/* Mobile Hamburger */}
+                        {/* Mobile Hamburger - Absolute Right */}
                         <button
                             onClick={() => setIsOpen(!isOpen)}
-                            className="md:hidden p-2 rounded-lg hover:bg-[var(--color-primary)]/10 transition-colors"
+                            className="md:hidden p-2 rounded-lg hover:bg-[var(--color-primary)]/10 transition-colors absolute right-0"
                             aria-label="Toggle menu"
                         >
                             <div className="w-5 h-4 flex flex-col justify-between">
