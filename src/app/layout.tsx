@@ -30,10 +30,11 @@ export const metadata: Metadata = {
   robots: "index, follow",
   icons: {
     icon: [
-      { url: '/favicon.svg', type: 'image/svg+xml' },
-      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/apple-touch-icon.png', type: 'image/png', sizes: '180x180' },
+      { url: '/favicon-32x32.png', type: 'image/png', sizes: '32x32' },
+      { url: '/favicon-16x16.png', type: 'image/png', sizes: '16x16' },
     ],
-    shortcut: '/favicon.ico',
+    shortcut: '/apple-touch-icon.png',
     apple: '/apple-touch-icon.png',
   },
   openGraph: {
