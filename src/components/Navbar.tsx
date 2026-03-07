@@ -172,8 +172,8 @@ export default function Navbar() {
                             <Image 
                                 src="/logo.svg" 
                                 alt="Ayura" 
-                                width={200} 
-                                height={72} 
+                                width={240} 
+                                height={80} 
                                 className="h-16 w-auto object-contain"
                                 priority
                             />
