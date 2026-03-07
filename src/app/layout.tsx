@@ -30,12 +30,11 @@ export const metadata: Metadata = {
   robots: "index, follow",
   icons: {
     icon: [
-      { url: '/favicon.svg', type: 'image/svg+xml' },
-      { url: '/apple-touch-icon.png', type: 'image/png', sizes: '180x180' },
-      { url: '/android-chrome-192x192.png', type: 'image/png', sizes: '192x192' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icon.png', type: 'image/png', sizes: '512x512' },
     ],
-    shortcut: '/favicon.svg',
-    apple: '/apple-touch-icon.png',
+    shortcut: '/icon.svg',
+    apple: '/icon.png',
   },
   openGraph: {
     title: "Ayura อายุระ | กล่องสุขภาพจากธรรมชาติ",
