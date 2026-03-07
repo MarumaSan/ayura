@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 // @ts-ignore
 import generatePayload from 'promptpay-qr';
@@ -168,13 +169,14 @@ export default function Navbar() {
                     <div className="flex items-center justify-between h-16">
                         {/* Logo */}
                         <Link href="/" className="flex items-center gap-2 group">
-                            <span className="text-2xl">🌿</span>
-                            <div>
-                                <span className="text-xl font-bold text-gradient">Ayura</span>
-                                <span className="text-xs block -mt-1 text-[var(--color-text-light)]">
-                                    อายุระ
-                                </span>
-                            </div>
+                            <Image 
+                                src="/logo.png" 
+                                alt="Ayura" 
+                                width={120} 
+                                height={40} 
+                                className="h-10 w-auto object-contain"
+                                priority
+                            />
                         </Link>
 
                         {/* Desktop Nav */}
